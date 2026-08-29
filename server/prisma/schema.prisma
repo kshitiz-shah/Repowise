@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RepositoryRole {
+  OWNER
+  MEMBER
+  VIEWER
+}
+
+enum RepositoryStatus {
+  PENDING
+  CLONING
+  ANALYZING
+  COMPLETED
+  FAILED
+}
+
+enum DependencyType {
+  IMPORT
+  REQUIRE
+  INHERITANCE
+  CALL
+  REFERENCE
+}
+
+enum IssueSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  UNKNOWN
+}
+
+enum AnalysisType {
+  ARCHITECTURE
+  RAG
+  BUG_TRIAGE
+  BUG_FILE_MAPPING
+  HOTSPOTS
+  DOCUMENTATION
+}
+
+enum AnalysisStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id           String                 @id @default(uuid())
+  name         String
+  email        String                 @unique
+  passwordHash String
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  repositories Repository[]           @relation("RepositoryOwner")
+  memberships  RepositoryMembership[]
+  sessions     AuthSession[]
+}
+
+model AuthSession {
+  id               String    @id @default(uuid())
+  userId           String
+  refreshTokenHash String    @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Repository {
+  id                String                 @id @default(uuid())
+  name              String
+  githubOwner       String
+  githubUrl         String                 @unique
+  description       String?
+  defaultBranch     String?
+  primaryLanguage   String?
+  status            RepositoryStatus       @default(PENDING)
+  analysisProgress  Int                    @default(0)
+  lastAnalyzedAt    DateTime?
+  ownerId           String
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  owner             User                   @relation("RepositoryOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  memberships       RepositoryMembership[]
+  files             File[]
+  dependencies      Dependency[]
+  issues            Issue[]
+  issueFileMappings IssueFileMapping[]
+  analyses          Analysis[]
+
+  @@index([ownerId])
+}
+
+model RepositoryMembership {
+  id           String         @id @default(uuid())
+  userId       String
+  repositoryId String
+  role         RepositoryRole @default(VIEWER)
+  createdAt    DateTime       @default(now())
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository   Repository     @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, repositoryId])
+  @@index([repositoryId])
+}
+
+model File {
+  id                 String             @id @default(uuid())
+  repositoryId       String
+  path               String
+  name               String
+  extension          String?
+  language           String?
+  type               String?
+  linesOfCode        Int?
+  size               Int?
+  churnScore         Float?
+  riskScore          Float?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  repository         Repository         @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  sourceDependencies Dependency[]       @relation("SourceFile")
+  targetDependencies Dependency[]       @relation("TargetFile")
+  issueFileMappings  IssueFileMapping[]
+
+  @@unique([repositoryId, path])
+}
+
+model Dependency {
+  id           String         @id @default(uuid())
+  repositoryId String
+  sourceFileId String
+  targetFileId String
+  type         DependencyType
+  createdAt    DateTime       @default(now())
+  repository   Repository     @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  sourceFile   File           @relation("SourceFile", fields: [sourceFileId], references: [id], onDelete: Cascade)
+  targetFile   File           @relation("TargetFile", fields: [targetFileId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceFileId, targetFileId, type])
+  @@index([repositoryId])
+}
+
+model Issue {
+  id               String             @id @default(uuid())
+  repositoryId     String
+  githubIssueId    String
+  number           Int
+  title            String
+  body             String?
+  state            String
+  labels           Json?
+  author           String?
+  githubCreatedAt  DateTime?
+  githubUpdatedAt  DateTime?
+  severity         IssueSeverity      @default(UNKNOWN)
+  severityScore    Float?
+  duplicateGroupId String?
+  isDuplicate      Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  repository       Repository         @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  fileMappings     IssueFileMapping[]
+
+  @@unique([repositoryId, githubIssueId])
+  @@index([repositoryId, number])
+}
+
+model IssueFileMapping {
+  id                 String     @id @default(uuid())
+  repositoryId       String
+  issueId            String
+  fileId             String
+  score              Float
+  confidence         Float?
+  rank               Int
+  semanticSimilarity Float?
+  keywordSimilarity  Float?
+  dependencyScore    Float?
+  historicalScore    Float?
+  explanation        String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  repository         Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  issue              Issue      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  file               File       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([issueId, fileId])
+  @@unique([issueId, rank])
+  @@index([repositoryId])
+}
+
+model Analysis {
+  id           String         @id @default(uuid())
+  repositoryId String
+  type         AnalysisType
+  status       AnalysisStatus @default(PENDING)
+  progress     Int            @default(0)
+  startedAt    DateTime?
+  completedAt  DateTime?
+  error        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  repository   Repository     @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@index([repositoryId, status])
+}
