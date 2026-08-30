@@ -1,1 +1,21 @@
-services: {}
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: repowise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: repowise
+      POSTGRES_USER: repowise
+      POSTGRES_PASSWORD: repowise_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repowise -d repowise"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

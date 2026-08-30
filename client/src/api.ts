@@ -6,9 +6,63 @@ interface Envelope<T> { success: boolean; data?: T; error?: ApiError }
 export interface User { id: string; name: string; email: string }
 export interface Session { user: User; accessToken: string }
 export interface Repository { id: string; name: string; githubOwner: string; githubUrl: string; description: string | null; defaultBranch: string | null; primaryLanguage: string | null }
-export interface GraphNode { id: string; label: string; type: string; language: string }
-export interface GraphEdge { source: string; target: string; type: string }
-export interface Architecture { repository_id: string; nodes: GraphNode[]; edges: GraphEdge[] }
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: "folder" | "file";
+  language?: string | null;
+  path?: string | null;
+  children_count?: number | null;
+  lines_of_code?: number | null;
+}
+export interface GraphEdge {
+  source: string;
+  target: string;
+  type: "CONTAINS" | "IMPORTS";
+}
+export interface ArchitectureStatistics {
+  files: number;
+  folders: number;
+  dependencies: number;
+}
+export interface ComponentEvidence {
+  files?: string[];
+  imports?: string[];
+  keywords?: string[];
+}
+
+export interface ArchitectureComponent {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  responsibilities?: string[];
+  files?: string[];
+  evidence?: ComponentEvidence;
+}
+
+export interface ArchitectureRelationship {
+  source: string;
+  target: string;
+  type: string;
+  label: string;
+  description?: string | null;
+}
+
+export interface SemanticArchitecture {
+  title: string;
+  summary: string;
+  components: ArchitectureComponent[];
+  relationships: ArchitectureRelationship[];
+}
+
+export interface Architecture {
+  repository_id: string;
+  architecture?: SemanticArchitecture;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  statistics?: ArchitectureStatistics;
+}
 export interface Source { file_id: string; file_path: string; start_line: number; end_line: number; score: number }
 export interface Answer { answer: string; sources: Source[] }
 

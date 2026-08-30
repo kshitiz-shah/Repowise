@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+server/node_modules/
 venv/
 .venv/
 
@@ -14,6 +15,8 @@ build/
 
 # Logs
 *.log
+server/dist/
+coverage/
 
 # OS files
 .DS_Store

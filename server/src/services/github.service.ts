@@ -53,7 +53,13 @@ export const getRepositoryMetadata = async (githubUrl: string): Promise<GitHubRe
     throw new ApiError(502, "GitHub could not be reached", "GITHUB_UNAVAILABLE");
   }
   if (response.status === 404) throw new ApiError(404, "GitHub repository not found or is not public", "GITHUB_REPOSITORY_NOT_FOUND");
-  if (!response.ok) throw new ApiError(502, "GitHub metadata request failed", "GITHUB_REQUEST_FAILED");
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null) as { message?: string } | null;
+    if (response.status === 403 && errorBody?.message?.includes("rate limit")) {
+      throw new ApiError(429, "GitHub API rate limit exceeded. Add a GITHUB_TOKEN to server/.env to increase the rate limit.", "GITHUB_RATE_LIMITED");
+    }
+    throw new ApiError(502, errorBody?.message ? `GitHub metadata request failed: ${errorBody.message}` : "GitHub metadata request failed", "GITHUB_REQUEST_FAILED");
+  }
 
   const data = await response.json() as { description: string | null; default_branch: string | null; language: string | null };
   return { ...reference, description: data.description, defaultBranch: data.default_branch, primaryLanguage: data.language };
@@ -69,7 +75,13 @@ export const getRepositorySourceFiles = async (repository: Pick<GitHubRepository
   } catch {
     throw new ApiError(502, "GitHub could not be reached", "GITHUB_UNAVAILABLE");
   }
-  if (!treeResponse.ok) throw new ApiError(502, "GitHub source tree request failed", "GITHUB_REQUEST_FAILED");
+  if (!treeResponse.ok) {
+    const errorBody = await treeResponse.json().catch(() => null) as { message?: string } | null;
+    if (treeResponse.status === 403 && errorBody?.message?.includes("rate limit")) {
+      throw new ApiError(429, "GitHub API rate limit exceeded. Add a GITHUB_TOKEN to server/.env to increase the rate limit.", "GITHUB_RATE_LIMITED");
+    }
+    throw new ApiError(502, errorBody?.message ? `GitHub source tree request failed: ${errorBody.message}` : "GitHub source tree request failed", "GITHUB_REQUEST_FAILED");
+  }
   const tree = await treeResponse.json() as { truncated?: boolean; tree?: Array<{ path: string; type: string; size?: number }> };
   if (tree.truncated) throw new ApiError(422, "Repository is too large to analyze through the GitHub tree API", "REPOSITORY_TOO_LARGE");
   const candidates = (tree.tree ?? []).filter((item) => item.type === "blob" && item.size !== undefined && item.size <= maxFileSizeBytes && sourceExtensions.has(item.path.slice(item.path.lastIndexOf(".")).toLowerCase())).slice(0, maxFiles);

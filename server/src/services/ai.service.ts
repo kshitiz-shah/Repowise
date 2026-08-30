@@ -28,7 +28,7 @@ export const indexRepositoryWithAi = (repositoryId: string, files: AiRepositoryF
   requestAi<{ repository_id: string; indexed_files: number; indexed_chunks: number; skipped_files: number }>("/api/index/repository", { repository_id: repositoryId, files, replace_existing: replaceExisting });
 
 export const analyzeArchitectureWithAi = (repositoryId: string, files: AiRepositoryFile[]) =>
-  requestAi<{ repository_id: string; nodes: unknown[]; edges: unknown[] }>("/api/architecture/analyze", { repository_id: repositoryId, files });
+  requestAi<{ repository_id: string; architecture?: unknown; nodes: unknown[]; edges: unknown[]; statistics: { files: number; folders: number; dependencies: number } }>("/api/architecture/analyze", { repository_id: repositoryId, files });
 
 export const queryRepositoryWithAi = (repositoryId: string, question: string, topK?: number) =>
   requestAi<{ answer: string; sources: unknown[] }>("/api/rag/query", { repository_id: repositoryId, question, ...(topK ? { top_k: topK } : {}) });
