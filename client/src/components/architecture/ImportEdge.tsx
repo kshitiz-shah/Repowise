@@ -44,9 +44,9 @@ export const ImportEdge: React.FC<EdgeProps> = ({
         <path
           d={edgePath}
           fill="none"
-          stroke="#38bdf8"
-          strokeWidth={6}
-          strokeOpacity={0.3}
+          stroke="#C56A3C"
+          strokeWidth={5}
+          strokeOpacity={0.25}
           strokeLinecap="round"
         />
       )}

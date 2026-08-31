@@ -12,7 +12,18 @@ const storedSession = (): Session | null => {
   }
 };
 
+const storedTheme = (): "light" | "dark" => {
+  try {
+    const raw = localStorage.getItem("repowise-theme");
+    if (raw === "dark" || raw === "light") return raw;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+};
+
 export default function App() {
+  const [theme, setTheme] = useState<"light" | "dark">(storedTheme);
   const [session, setSession] = useState<Session | null>(storedSession);
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [selected, setSelected] = useState<Repository | null>(null);
@@ -20,6 +31,17 @@ export default function App() {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [notice, setNotice] = useState<string>("");
   const [loading, setLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      localStorage.setItem("repowise-theme", theme);
+    } catch {
+      // ignore
+    }
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
 
   useEffect(() => {
     if (!session) return;
@@ -76,17 +98,29 @@ export default function App() {
         authenticate={authenticate}
         loading={loading === "auth"}
         notice={notice}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
     );
 
   return (
     <main className="shell">
       <header>
-        <div>
-          <p className="eyebrow">REPOSITORY INTELLIGENCE</p>
-          <h1>RepoWise</h1>
+        <div className="header-brand">
+          <div className="header-brand-logo" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+          </div>
+          <div>
+            <span className="header-brand-name">RepoWise</span>
+            <p className="eyebrow" style={{ margin: 0, display: "inline-block" }}>Codebase Architecture & Intelligence</p>
+          </div>
         </div>
         <div className="user">
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
           <span>{session.user.name}</span>
           <button className="text-button" onClick={signOut}>
             Sign out
@@ -96,10 +130,10 @@ export default function App() {
 
       <section className="intro">
         <div>
-          <p className="eyebrow">YOUR WORKSPACE</p>
+          <p className="eyebrow">Architecture Workbench</p>
           <h2>Understand a repository before you change it.</h2>
           <p>
-            Add a public GitHub URL, explore its hierarchical architecture, then ask questions grounded in its code.
+            Index any GitHub repository to map its hierarchical architecture, explore module dependencies, and ask grounded questions in seconds.
           </p>
         </div>
         <AddRepository
@@ -124,7 +158,7 @@ export default function App() {
         <aside>
           <h3>Repositories</h3>
           {repositories.length === 0 ? (
-            <p className="empty">Add a public GitHub repository to begin.</p>
+            <p className="empty">Add a public GitHub repository to begin architecture mapping.</p>
           ) : (
             repositories.map((repo) => (
               <button
@@ -170,6 +204,8 @@ function AuthScreen({
   authenticate,
   loading,
   notice,
+  theme,
+  toggleTheme,
 }: {
   authenticate: (
     payload: { name?: string; email: string; password: string },
@@ -177,6 +213,8 @@ function AuthScreen({
   ) => Promise<void>;
   loading: boolean;
   notice: string;
+  theme: "light" | "dark";
+  toggleTheme: () => void;
 }) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
@@ -191,13 +229,28 @@ function AuthScreen({
   return (
     <main className="auth-page">
       <section className="auth-copy">
-        <p className="eyebrow">REPOWISE / B.TECH PROJECT</p>
+        <div className="auth-top-bar">
+          <div className="auth-brand">
+            <div className="auth-brand-logo" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                <polyline points="2 17 12 22 22 17"></polyline>
+                <polyline points="2 12 12 17 22 12"></polyline>
+              </svg>
+            </div>
+            <span className="auth-brand-name">RepoWise</span>
+          </div>
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+        </div>
+        <p className="eyebrow">Architecture & Code Intelligence</p>
         <h1>Make an unfamiliar codebase feel familiar.</h1>
-        <p>Map the architecture, retrieve relevant code, and explore how the pieces connect.</p>
+        <p>
+          Map high-level subsystem architectures, inspect file dependency graphs, and query codebases with grounded AI reasoning.
+        </p>
       </section>
       <form className="auth-card" onSubmit={submit}>
-        <p className="eyebrow">{mode === "login" ? "WELCOME BACK" : "CREATE ACCOUNT"}</p>
-        <h2>{mode === "login" ? "Sign in" : "Start exploring"}</h2>
+        <p className="eyebrow">{mode === "login" ? "Welcome Back" : "Get Started"}</p>
+        <h2>{mode === "login" ? "Sign in to RepoWise" : "Create your account"}</h2>
         {mode === "register" && (
           <label>
             Name
@@ -206,16 +259,18 @@ function AuthScreen({
               minLength={2}
               value={name}
               onChange={(event) => setName(event.target.value)}
+              placeholder="Ada Lovelace"
             />
           </label>
         )}
         <label>
-          Email
+          Email address
           <input
             required
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            placeholder="developer@example.com"
           />
         </label>
         <label>
@@ -231,7 +286,7 @@ function AuthScreen({
         </label>
         {notice && <p className="notice">{notice}</p>}
         <button disabled={loading}>
-          {loading ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
+          {loading ? "Authenticating…" : mode === "login" ? "Sign in" : "Create account"}
         </button>
         <button
           type="button"
@@ -242,6 +297,27 @@ function AuthScreen({
         </button>
       </form>
     </main>
+  );
+}
+
+function ThemeToggle({
+  theme,
+  toggleTheme,
+}: {
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="theme-toggle-btn"
+      onClick={toggleTheme}
+      title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
+      aria-label="Toggle dark mode"
+    >
+      <span>{theme === "light" ? "🌙" : "☀️"}</span>
+      <span>{theme === "light" ? "Dark" : "Light"}</span>
+    </button>
   );
 }
 
@@ -267,7 +343,7 @@ function AddRepository({
   return (
     <form className="add-repo" onSubmit={submit}>
       <label>
-        Public GitHub repository URL
+        Public GitHub Repository URL
         <input
           required
           type="url"
@@ -324,7 +400,7 @@ function RepositoryPanel({
           }
           disabled={loading !== null}
         >
-          {loading === "architecture" ? "Building architecture…" : "Build architecture"}
+          {loading === "architecture" ? "Generating architecture…" : "Generate Architecture"}
         </button>
         <button
           className="secondary"
@@ -346,7 +422,7 @@ function RepositoryPanel({
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">SYSTEM ARCHITECTURE</p>
+            <p className="eyebrow">System Architecture</p>
             <h3>Hierarchical Architecture Explorer</h3>
           </div>
           {graph && (
@@ -360,14 +436,14 @@ function RepositoryPanel({
         {graph ? (
           <ArchitectureGraph graph={graph} />
         ) : (
-          <p className="empty">Select “Build architecture” to explore the hierarchical repository architecture.</p>
+          <p className="empty">Select “Generate Architecture” to map the hierarchical repository architecture.</p>
         )}
       </section>
 
       <section className="panel">
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">CODE Q&A</p>
+            <p className="eyebrow">Code Q&A Assistant</p>
             <h3>Ask the indexed repository</h3>
           </div>
         </div>
@@ -385,10 +461,10 @@ function RepositoryPanel({
             minLength={3}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="How does authentication work?"
+            placeholder="e.g. How does authentication work or where are database models defined?"
           />
           <button disabled={loading !== null}>
-            {loading === "question" ? "Thinking…" : "Ask"}
+            {loading === "question" ? "Analyzing…" : "Ask Question"}
           </button>
         </form>
         {answer && (
@@ -396,7 +472,7 @@ function RepositoryPanel({
             <p>{answer.answer}</p>
             {answer.sources.length > 0 && (
               <div>
-                <p className="eyebrow">SOURCES</p>
+                <p className="eyebrow">Referenced Sources</p>
                 <ul>
                   {answer.sources.map((source) => (
                     <li key={`${source.file_id}-${source.start_line}`}>

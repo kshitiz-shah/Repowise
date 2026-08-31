@@ -27,7 +27,7 @@ export const ContainsEdge: React.FC<EdgeProps> = ({
       className="arch-contains-edge"
       d={edgePath}
       style={{
-        stroke: "#94a3b8",
+        stroke: "#8E98B0",
         strokeWidth: 1.5,
         strokeDasharray: "4 4",
         fill: "none",

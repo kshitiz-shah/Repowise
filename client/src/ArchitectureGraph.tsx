@@ -90,56 +90,6 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
           {/* Semantic Architecture Arrow */}
           <marker
             id="arch-semantic-arrow"
-            markerWidth="12"
-            markerHeight="12"
-            refX="9"
-            refY="4"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path
-              d="M1,1 L1,7 L9,4 z"
-              fill="#f8fafc"
-              stroke="#0284c7"
-              strokeWidth="1"
-            />
-          </marker>
-
-          {/* File Dependency Graph Arrows */}
-          <marker
-            id="arch-arrow-default"
-            markerWidth="12"
-            markerHeight="12"
-            refX="9"
-            refY="4"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path
-              d="M1,1 L1,7 L9,4 z"
-              fill="#f8fafc"
-              stroke="#475569"
-              strokeWidth="1"
-            />
-          </marker>
-          <marker
-            id="arch-arrow-highlight"
-            markerWidth="14"
-            markerHeight="14"
-            refX="10"
-            refY="4"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <path
-              d="M1,1 L1,7 L10,4 z"
-              fill="#38bdf8"
-              stroke="#0284c7"
-              strokeWidth="1"
-            />
-          </marker>
-          <marker
-            id="arch-arrow-dim"
             markerWidth="10"
             markerHeight="10"
             refX="8"
@@ -147,7 +97,57 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
             orient="auto"
             markerUnits="strokeWidth"
           >
-            <path d="M1,1 L1,7 L8,4 z" fill="#64748b" opacity="0.4" />
+            <path
+              d="M1,1 L1,7 L8,4 z"
+              fill="#C56A3C"
+              stroke="#C56A3C"
+              strokeWidth="1"
+            />
+          </marker>
+
+          {/* File Dependency Graph Arrows */}
+          <marker
+            id="arch-arrow-default"
+            markerWidth="10"
+            markerHeight="10"
+            refX="8"
+            refY="4"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path
+              d="M1,1 L1,7 L8,4 z"
+              fill="#475069"
+              stroke="#475069"
+              strokeWidth="1"
+            />
+          </marker>
+          <marker
+            id="arch-arrow-highlight"
+            markerWidth="12"
+            markerHeight="12"
+            refX="9"
+            refY="4"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path
+              d="M1,1 L1,7 L9,4 z"
+              fill="#C56A3C"
+              stroke="#C56A3C"
+              strokeWidth="1"
+            />
+          </marker>
+          <marker
+            id="arch-arrow-dim"
+            markerWidth="8"
+            markerHeight="8"
+            refX="6"
+            refY="3"
+            orient="auto"
+            markerUnits="strokeWidth"
+          >
+            <path d="M1,1 L1,5 L6,3 z" fill="#D8CEBE" opacity="0.5" />
           </marker>
         </defs>
       </svg>
@@ -220,7 +220,7 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
                   proOptions={{ hideAttribution: true }}
                 >
                   <Background
-                    color="#94a3b8"
+                    color="var(--canvas-dots, #D5CABE)"
                     gap={24}
                     size={1.5}
                     variant={BackgroundVariant.Dots}
@@ -292,7 +292,7 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
               proOptions={{ hideAttribution: true }}
             >
               <Background
-                color="#94a3b8"
+                color="var(--canvas-dots, #D5CABE)"
                 gap={24}
                 size={1.5}
                 variant={BackgroundVariant.Dots}
