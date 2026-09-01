@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     llm_provider: str = Field(default="gemini", pattern=r"^(gemini|groq)$")
     gemini_api_key: SecretStr | None = None
     groq_api_key: SecretStr | None = None
-    gemini_model: str = "gemini-3.6-flash"
-    groq_model: str = "llama-3.3-70b-versatile"
+    gemini_model: str = "gemini-2.0-flash"
+    groq_model: str = "openai/gpt-oss-120b"
 
 
 @lru_cache

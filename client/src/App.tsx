@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import ArchitectureGraph from "./ArchitectureGraph";
 import * as api from "./api";
 import type { Answer, Architecture, Repository, Session } from "./api";
+import { FormattedAnswer } from "./components/FormattedAnswer";
 
 const storedSession = (): Session | null => {
   try {
@@ -447,6 +448,26 @@ function RepositoryPanel({
             <h3>Ask the indexed repository</h3>
           </div>
         </div>
+
+        <div className="qa-suggestions">
+          <span className="qa-suggestions-label">Try asking:</span>
+          {[
+            "How does authentication and authorization work?",
+            "Where are database models and schemas defined?",
+            "What are the main API endpoints and controllers?",
+            "Explain the step-by-step request flow",
+          ].map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="qa-suggestion-pill"
+              onClick={() => setQuestion(s)}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+
         <form
           className="question-form"
           onSubmit={(event) => {
@@ -467,19 +488,22 @@ function RepositoryPanel({
             {loading === "question" ? "Analyzing…" : "Ask Question"}
           </button>
         </form>
+
         {answer && (
           <div className="answer">
-            <p>{answer.answer}</p>
+            <div className="answer-header">
+              <div className="answer-badge">RepoWise AI Explanation</div>
+            </div>
+            <FormattedAnswer content={answer.answer} />
             {answer.sources.length > 0 && (
-              <div>
-                <p className="eyebrow">Referenced Sources</p>
-                <ul>
+              <div className="answer-sources">
+                <p className="eyebrow">Referenced Code Evidence ({answer.sources.length} snippets)</p>
+                <ul className="source-list">
                   {answer.sources.map((source) => (
-                    <li key={`${source.file_id}-${source.start_line}`}>
-                      <code>
-                        {source.file_path}:{source.start_line}–{source.end_line}
-                      </code>
-                      <span>{Math.round(source.score * 100)}% match</span>
+                    <li key={`${source.file_id}-${source.start_line}`} className="source-item">
+                      <code className="source-path">{source.file_path}</code>
+                      <span className="source-lines">Lines {source.start_line}–{source.end_line}</span>
+                      <span className="source-score">{Math.round(source.score * 100)}% match</span>
                     </li>
                   ))}
                 </ul>

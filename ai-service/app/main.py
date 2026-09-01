@@ -1,6 +1,7 @@
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -15,9 +16,27 @@ from app.services.llm_service import LLMUnavailableError
 logger = logging.getLogger("repowise.ai")
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Modern lifespan handler — runs startup logic before yielding, cleanup after."""
+    # --- Startup ---
+    try:
+        from app.services.qdrant_service import get_qdrant_service
+        from app.services.vector_service import VectorService
+        vs = VectorService(get_qdrant_service())
+        vs.ensure_repository_index()
+        logger.info("Qdrant repository_id payload index verified")
+    except Exception as e:
+        logger.warning("Qdrant startup index check skipped: %s", e)
+
+    yield  # Application runs here
+
+    # --- Shutdown (if needed) ---
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="RepoWise AI Service", version="0.1.0")
+    app = FastAPI(title="RepoWise AI Service", version="0.1.0", lifespan=lifespan)
 
     @app.middleware("http")
     async def log_request(request: Request, call_next):
@@ -74,6 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(rag.router, prefix="/api")
     app.include_router(architecture.router, prefix="/api")
     app.include_router(issues.router, prefix="/api")
+
     logger.info("Configured %s for %s", settings.service_name, settings.environment)
     return app
 

@@ -21,23 +21,99 @@ class LLMUnavailableError(Exception):
 class LLMService:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        self._provider = self._create_provider()
+        self._primary = self._create_primary()
+        self._fallback = self._create_fallback()
 
-    def _create_provider(self) -> LLMProvider:
-        if self._settings.llm_provider == "gemini" and self._settings.gemini_api_key:
-            return GeminiProvider(self._settings.gemini_api_key.get_secret_value(), self._settings.gemini_model)
-        if self._settings.llm_provider == "groq" and self._settings.groq_api_key:
-            return GroqProvider(self._settings.groq_api_key.get_secret_value(), self._settings.groq_model)
-        raise LLMUnavailableError(f"No API key configured for LLM provider '{self._settings.llm_provider}'")
+    def _create_primary(self) -> LLMProvider | None:
+        """Create the primary provider based on LLM_PROVIDER setting."""
+        try:
+            if self._settings.llm_provider == "gemini" and self._settings.gemini_api_key:
+                return GeminiProvider(self._settings.gemini_api_key.get_secret_value(), self._settings.gemini_model)
+            if self._settings.llm_provider == "groq" and self._settings.groq_api_key:
+                return GroqProvider(self._settings.groq_api_key.get_secret_value(), self._settings.groq_model)
+        except Exception as e:
+            logger.warning("Failed to create primary LLM provider '%s': %s", self._settings.llm_provider, e)
+        return None
+
+    def _create_fallback(self) -> LLMProvider | None:
+        """Create a fallback provider (the OTHER provider that isn't primary)."""
+        try:
+            if self._settings.llm_provider == "gemini" and self._settings.groq_api_key:
+                key = self._settings.groq_api_key.get_secret_value()
+                if key:
+                    logger.info("Groq configured as fallback LLM provider (model: %s)", self._settings.groq_model)
+                    return GroqProvider(key, self._settings.groq_model)
+            if self._settings.llm_provider == "groq" and self._settings.gemini_api_key:
+                key = self._settings.gemini_api_key.get_secret_value()
+                if key:
+                    logger.info("Gemini configured as fallback LLM provider (model: %s)", self._settings.gemini_model)
+                    return GeminiProvider(key, self._settings.gemini_model)
+        except Exception as e:
+            logger.warning("Failed to create fallback LLM provider: %s", e)
+        return None
 
     def generate_text(self, prompt: str) -> str:
+        if not self._primary and not self._fallback:
+            raise LLMUnavailableError(f"No API key configured for LLM provider '{self._settings.llm_provider}'")
+
+        # Try primary provider
+        if self._primary:
+            try:
+                return self._primary.generate_text(prompt)
+            except Exception as primary_error:
+                logger.warning(
+                    "[LLM Fallback] Primary provider (%s) failed: %s",
+                    self._settings.llm_provider, primary_error,
+                )
+                # If we have a fallback, try it
+                if self._fallback:
+                    logger.info("[LLM Fallback] Switching to fallback provider...")
+                    try:
+                        result = self._fallback.generate_text(prompt)
+                        logger.info("[LLM Fallback] Fallback provider succeeded")
+                        return result
+                    except Exception as fallback_error:
+                        logger.exception("[LLM Fallback] Fallback provider also failed")
+                        raise LLMUnavailableError(
+                            f"Both LLM providers failed. "
+                            f"Primary: {primary_error}. Fallback: {fallback_error}"
+                        ) from fallback_error
+                else:
+                    logger.exception("[LLM Error] Primary failed and no fallback configured")
+                    raise LLMUnavailableError("LLM provider is unavailable") from primary_error
+
+        # No primary, try fallback directly
+        if self._fallback:
+            try:
+                return self._fallback.generate_text(prompt)
+            except Exception as error:
+                logger.exception("[LLM Error] Fallback-only provider failed")
+                raise LLMUnavailableError("LLM provider is unavailable") from error
+
+        raise LLMUnavailableError("No LLM providers available")
+
+    def transform_query(self, question: str) -> str:
+        """
+        Step 1 inspired by RAG_AI (query.js:transformQuery):
+        Rephrase user question into a standalone, keyword-rich query optimized
+        for semantic codebase retrieval and embedding search.
+        """
+        prompt = (
+            "You are an expert software engineer and codebase search query optimizer.\n"
+            "Given the user's technical question about a repository, rephrase it into a concise, standalone search query "
+            "enriched with relevant software engineering terms, potential function/class names, API endpoints, or architectural concepts.\n"
+            "Only output the transformed search query and nothing else.\n\n"
+            f"User Question: {question}\n"
+            "Transformed Search Query:"
+        )
         try:
-            return self._provider.generate_text(prompt)
-        except LLMUnavailableError:
-            raise
-        except Exception as error:
-            logger.exception("LLM generation failed")
-            raise LLMUnavailableError("LLM provider is unavailable") from error
+            transformed = self.generate_text(prompt).strip().strip('"').strip("'")
+            if transformed and len(transformed) >= 3:
+                logger.info("[Query Transformation] '%s' -> '%s'", question, transformed)
+                return transformed
+        except Exception as e:
+            logger.warning("[Query Transformation] Failed to transform query: %s. Using raw question.", e)
+        return question
 
     def generate_structured(self, prompt: str, output_type: type[T]) -> T:
         raw = self.generate_text(f"{prompt}\n\nReturn valid JSON only.")

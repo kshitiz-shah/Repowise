@@ -25,9 +25,31 @@ export interface ArchitectureStatistics {
   folders: number;
   dependencies: number;
 }
+export interface InternalFlowStep {
+  from_symbol: string;
+  to_symbol: string;
+  action: string;
+  file_path?: string | null;
+}
+
+export interface ExecutionFlowStep {
+  component: string;
+  action: string;
+  file?: string | null;
+  symbol?: string | null;
+}
+
+export interface ExecutionFlow {
+  name: string;
+  description: string;
+  steps: ExecutionFlowStep[];
+}
+
 export interface ComponentEvidence {
   files?: string[];
+  symbols?: string[];
   imports?: string[];
+  routes?: string[];
   keywords?: string[];
 }
 
@@ -38,6 +60,9 @@ export interface ArchitectureComponent {
   description: string;
   responsibilities?: string[];
   files?: string[];
+  symbols?: string[];
+  routes?: string[];
+  internal_flow?: InternalFlowStep[];
   evidence?: ComponentEvidence;
 }
 
@@ -52,8 +77,11 @@ export interface ArchitectureRelationship {
 export interface SemanticArchitecture {
   title: string;
   summary: string;
+  architecture_style?: string;
+  entry_points?: string[];
   components: ArchitectureComponent[];
   relationships: ArchitectureRelationship[];
+  flows?: ExecutionFlow[];
 }
 
 export interface Architecture {

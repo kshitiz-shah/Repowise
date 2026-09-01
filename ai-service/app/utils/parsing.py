@@ -6,6 +6,7 @@ LANGUAGE_BY_EXTENSION = {
     ".py": "python", ".ts": "typescript", ".tsx": "tsx", ".js": "javascript", ".jsx": "jsx",
     ".java": "java", ".go": "go", ".rs": "rust", ".cs": "csharp", ".cpp": "cpp",
     ".c": "c", ".h": "c", ".md": "markdown", ".json": "json", ".yml": "yaml", ".yaml": "yaml",
+    ".prisma": "prisma", ".sql": "sql", ".toml": "toml", ".graphql": "graphql", ".gql": "graphql",
 }
 
 

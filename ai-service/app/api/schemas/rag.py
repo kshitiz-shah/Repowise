@@ -1,10 +1,13 @@
 from pydantic import BaseModel, Field
 
+from app.api.schemas.repository import RepositoryFile
+
 
 class RagQueryRequest(BaseModel):
     repository_id: str = Field(min_length=1, max_length=256)
     question: str = Field(min_length=3, max_length=10_000)
     top_k: int = Field(default=8, ge=1, le=20)
+    files: list[RepositoryFile] | None = Field(default=None, description="Optional source files for automatic on-demand indexing")
 
 
 class SourceReference(BaseModel):

@@ -2,7 +2,10 @@ from app.api.schemas.repository import RepositoryFile
 from app.models.document import CodeDocument
 from app.utils.parsing import detect_language
 
-SUPPORTED_LANGUAGES = {"python", "typescript", "tsx", "javascript", "jsx", "java", "go", "rust", "csharp", "cpp", "c"}
+SUPPORTED_LANGUAGES = {
+    "python", "typescript", "tsx", "javascript", "jsx", "java", "go", "rust", "csharp", "cpp", "c",
+    "markdown", "json", "yaml", "prisma", "sql", "toml", "graphql",
+}
 
 
 def to_code_documents(repository_id: str, files: list[RepositoryFile]) -> tuple[list[CodeDocument], int]:

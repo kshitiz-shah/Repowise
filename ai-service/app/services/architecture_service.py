@@ -31,6 +31,27 @@ class ArchitectureService:
     def analyze(self, request: ArchitectureRequest) -> ArchitectureData:
         documents, _ = to_code_documents(request.repository_id, request.files)
 
+        # Automatically index repository into vector DB for Q&A if not already indexed
+        try:
+            from app.services.embedding_service import get_embedding_service
+            from app.services.indexing_service import IndexingService
+            from app.services.qdrant_service import get_qdrant_service
+            from app.services.vector_service import VectorService
+            from app.api.schemas.indexing import IndexRepositoryRequest
+
+            vs = VectorService(get_qdrant_service())
+            indexing_service = IndexingService(get_embedding_service(), vs)
+            indexing_service.index_repository(
+                IndexRepositoryRequest(
+                    repository_id=request.repository_id,
+                    files=request.files,
+                    replace_existing=False,
+                )
+            )
+            logger.info("Automatically indexed repository %s during architecture analysis", request.repository_id)
+        except Exception as e:
+            logger.info("Auto-indexing during architecture analysis skipped: %s", e)
+
         # 1. Semantic Architecture Discovery (LLM + Agent with Fallback)
         semantic_arch: SemanticArchitecture = self._agent.discover_architecture(
             request.repository_id,

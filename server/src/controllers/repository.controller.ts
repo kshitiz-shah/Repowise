@@ -38,8 +38,8 @@ export const analyzeArchitecture: RequestHandler = async (req, res, next) => {
 
 export const queryRepository: RequestHandler = async (req, res, next) => {
   try {
-    await repositoryService.getRepository(req.user!.id, req.params.id as string);
-    res.status(200).json({ success: true, data: await aiService.queryRepositoryWithAi(req.params.id as string, req.body.question, req.body.topK) });
+    const files = await repositoryService.getRepositoryFilesForAi(req.user!.id, req.params.id as string);
+    res.status(200).json({ success: true, data: await aiService.queryRepositoryWithAi(req.params.id as string, req.body.question, files, req.body.topK) });
   } catch (error) { next(error); }
 };
 

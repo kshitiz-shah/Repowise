@@ -23,3 +23,5 @@ class CodeChunk:
     content: str
     file_hash: str
     chunk_hash: str
+    symbol: str | None = None
+    chunk_type: str = "block"  # "function", "class", "route", "module", "block"

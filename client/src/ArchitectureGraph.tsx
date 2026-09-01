@@ -1,51 +1,53 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
   ReactFlow,
-  Controls,
   Background,
+  Controls,
   BackgroundVariant,
-  type NodeTypes,
-  type EdgeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import type { Architecture } from "./api";
-import { useSemanticArchitecture } from "./hooks/useSemanticArchitecture";
+import type { Architecture, ExecutionFlow } from "./api";
 import { useArchitectureGraph } from "./hooks/useArchitectureGraph";
-import { ComponentNode } from "./components/architecture/ComponentNode";
-import { SemanticEdge } from "./components/architecture/SemanticEdge";
-import { ComponentDetailDrawer } from "./components/architecture/ComponentDetailDrawer";
+import { useSemanticArchitecture } from "./hooks/useSemanticArchitecture";
 import { FolderNode } from "./components/architecture/FolderNode";
 import { FileNode } from "./components/architecture/FileNode";
+import { ComponentNode } from "./components/architecture/ComponentNode";
 import { ContainsEdge } from "./components/architecture/ContainsEdge";
 import { ImportEdge } from "./components/architecture/ImportEdge";
+import { SemanticEdge } from "./components/architecture/SemanticEdge";
+import { ComponentDetailDrawer } from "./components/architecture/ComponentDetailDrawer";
 
-const semanticNodeTypes: NodeTypes = {
-  semanticComponent: ComponentNode,
-};
-
-const semanticEdgeTypes: EdgeTypes = {
-  semanticRelationship: SemanticEdge,
-};
-
-const fileNodeTypes: NodeTypes = {
+// Custom Node and Edge Types Map
+const fileNodeTypes = {
   archFolder: FolderNode,
   archFile: FileNode,
 };
 
-const fileEdgeTypes: EdgeTypes = {
+const fileEdgeTypes = {
   archContains: ContainsEdge,
   archImport: ImportEdge,
+};
+
+const semanticNodeTypes = {
+  semanticComponent: ComponentNode,
+};
+
+const semanticEdgeTypes = {
+  semanticRelationship: SemanticEdge,
 };
 
 interface ArchitectureGraphProps {
   graph: Architecture;
 }
 
-export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
-  const [activeTab, setActiveTab] = useState<"system" | "dependencies">("system");
+type ExplorerTab = "system" | "flows" | "dependencies";
 
-  // Semantic Architecture hook (Primary view)
+export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
+  const [activeTab, setActiveTab] = useState<ExplorerTab>("system");
+  const [selectedFlowIndex, setSelectedFlowIndex] = useState<number>(0);
+
+  // Hook 1: Semantic System Architecture (High-level Subsystems)
   const {
     flowNodes: semanticNodes,
     flowEdges: semanticEdges,
@@ -53,25 +55,22 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
     clearSelection: clearSemanticSelection,
   } = useSemanticArchitecture(graph.architecture);
 
-  // File Dependency Graph hook (Secondary view)
+  // Hook 2: Hierarchical File Dependencies (Code Details)
   const {
     flowNodes: fileNodes,
     flowEdges: fileEdges,
     selectedFileId,
     clearSelection: clearFileSelection,
-    statistics,
   } = useArchitectureGraph(graph);
-
-  const selectedFileNode = useMemo(() => {
-    if (!selectedFileId) return null;
-    return graph.nodes.find((n) => n.id === selectedFileId);
-  }, [selectedFileId, graph.nodes]);
 
   const hasSemanticArchitecture = Boolean(
     graph.architecture &&
-      graph.architecture.components &&
-      graph.architecture.components.length > 0,
+    graph.architecture.components &&
+    graph.architecture.components.length > 0
   );
+
+  const flows: ExecutionFlow[] = graph.architecture?.flows || [];
+  const statistics = graph.statistics;
 
   return (
     <div className="arch-explorer-container">
@@ -162,7 +161,16 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
             className={`arch-tab-btn ${activeTab === "system" ? "active" : ""}`}
             onClick={() => setActiveTab("system")}
           >
-            🏛️ System Architecture
+            🏛️ Subsystem Architecture
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "flows"}
+            className={`arch-tab-btn ${activeTab === "flows" ? "active" : ""}`}
+            onClick={() => setActiveTab("flows")}
+          >
+            ⚡ Execution Flows ({flows.length})
           </button>
           <button
             type="button"
@@ -198,7 +206,9 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
           {/* Executive Architecture Summary Banner */}
           {graph.architecture && (
             <div className="arch-summary-banner">
-              <div className="arch-summary-badge">ARCHITECTURAL OVERVIEW</div>
+              <div className="arch-summary-badge">
+                {graph.architecture.architecture_style || "ARCHITECTURAL OVERVIEW"}
+              </div>
               <h3 className="arch-summary-title">{graph.architecture.title}</h3>
               <p className="arch-summary-text">{graph.architecture.summary}</p>
             </div>
@@ -246,7 +256,86 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
       )}
 
       {/* =========================================================================
-          VIEW 2: CODE DEPENDENCIES (Secondary)
+          VIEW 2: RUNTIME EXECUTION FLOWS (Level 3 Deep Flow Explorer)
+          ========================================================================= */}
+      {activeTab === "flows" && (
+        <div className="arch-flows-view">
+          {flows.length === 0 ? (
+            <p className="empty">No specific execution flows identified yet.</p>
+          ) : (
+            <div className="arch-flows-layout">
+              {/* Left Column: Flow List Selector */}
+              <aside className="arch-flows-sidebar">
+                <p className="eyebrow" style={{ margin: "0 0 0.5rem" }}>
+                  IDENTIFIED EXECUTION FLOWS
+                </p>
+                <div className="arch-flows-selector">
+                  {flows.map((flow, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      className={`arch-flow-selector-btn ${selectedFlowIndex === idx ? "active" : ""}`}
+                      onClick={() => setSelectedFlowIndex(idx)}
+                    >
+                      <strong>{flow.name}</strong>
+                      <span>{flow.steps.length} sequence steps</span>
+                    </button>
+                  ))}
+                </div>
+              </aside>
+
+              {/* Right Column: Flow Sequence Stepper */}
+              <main className="arch-flows-main">
+                {flows[selectedFlowIndex] && (
+                  <div className="arch-flow-detail-card">
+                    <div className="arch-flow-header">
+                      <span className="arch-flow-badge">END-TO-END FLOW</span>
+                      <h3>{flows[selectedFlowIndex].name}</h3>
+                      <p>{flows[selectedFlowIndex].description}</p>
+                    </div>
+
+                    <div className="arch-flow-steps-timeline">
+                      {flows[selectedFlowIndex].steps.map((step, sIdx) => (
+                        <div key={sIdx} className="arch-timeline-step">
+                          <div className="timeline-marker">
+                            <span className="step-circle">{sIdx + 1}</span>
+                            {sIdx < flows[selectedFlowIndex].steps.length - 1 && (
+                              <span className="timeline-line"></span>
+                            )}
+                          </div>
+                          <div className="timeline-body">
+                            <div className="timeline-component-pill">
+                              {step.component.replace(/_/g, " ").toUpperCase()}
+                            </div>
+                            <h4 className="timeline-action">{step.action}</h4>
+                            {(step.file || step.symbol) && (
+                              <div className="timeline-meta">
+                                {step.file && (
+                                  <span className="timeline-file">
+                                    <code>{step.file}</code>
+                                  </span>
+                                )}
+                                {step.symbol && (
+                                  <span className="timeline-symbol">
+                                    symbol: <code>{step.symbol}</code>
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </main>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          VIEW 3: CODE DEPENDENCIES (Secondary)
           ========================================================================= */}
       {activeTab === "dependencies" && (
         <div className="arch-dependencies-view">
@@ -262,10 +351,10 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
               </span>
             </div>
 
-            {selectedFileNode && (
+            {selectedFileId && (
               <div className="arch-selection-banner">
                 <span>
-                  Selected: <strong>{selectedFileNode.path || selectedFileNode.label}</strong>
+                  Selected: <strong>{selectedFileId.replace("file:", "")}</strong>
                 </span>
                 <button
                   type="button"
