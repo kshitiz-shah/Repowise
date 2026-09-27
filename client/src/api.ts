@@ -125,3 +125,84 @@ export const addRepository = (token: string, githubUrl: string) => request<Repos
 export const indexRepository = (token: string, id: string) => request<{ indexed_files: number; indexed_chunks: number }>(`/repositories/${id}/index`, { method: "POST", body: "{}" }, token);
 export const architecture = (token: string, id: string) => request<Architecture>(`/repositories/${id}/architecture`, { method: "POST", body: "{}" }, token);
 export const askQuestion = (token: string, id: string, question: string) => request<Answer>(`/repositories/${id}/query`, { method: "POST", body: JSON.stringify({ question, topK: 8 }) }, token);
+
+export interface BugLocalizationSignals {
+  semantic_similarity: number;
+  keyword_score: number;
+  dependency_score: number;
+  path_score: number;
+  historical_score: number;
+}
+
+export interface RelevantChunk {
+  start_line: number;
+  end_line: number;
+  symbol: string | null;
+  chunk_type: string;
+  score: number;
+}
+
+export interface FileCandidateEvidence {
+  matched_keywords: string[];
+  matched_symbols: string[];
+  dependency_chain: string[];
+  relevant_chunks: RelevantChunk[];
+}
+
+export interface FileCandidate {
+  file_path: string;
+  file_id: string;
+  final_score: number;
+  confidence: number;
+  rank: number;
+  signals: BugLocalizationSignals;
+  evidence: FileCandidateEvidence;
+  explanation: string | null;
+}
+
+export interface IssueAnalysis {
+  problem_summary: string;
+  error_messages: string[];
+  entities: string[];
+  file_path_hints: string[];
+  api_endpoints: string[];
+  domain_concepts: string[];
+  affected_subsystem: string;
+  search_queries: string[];
+}
+
+export interface BugLocalizationResult {
+  repository_id: string;
+  issue_analysis: IssueAnalysis;
+  candidates: FileCandidate[];
+  total_files_analyzed: number;
+  analysis_summary: string;
+}
+
+export interface GitHubIssueDetails {
+  number: number;
+  title: string;
+  body: string | null;
+  state: string;
+  author: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export const localizeBug = (
+  token: string,
+  id: string,
+  issue: { number: number; title: string; body?: string; topK?: number; includeExplanation?: boolean }
+) =>
+  request<BugLocalizationResult>(
+    `/repositories/${id}/bugs/localize`,
+    { method: "POST", body: JSON.stringify(issue) },
+    token
+  );
+
+export const fetchGitHubIssue = (token: string, id: string, issueNumber: number) =>
+  request<GitHubIssueDetails>(`/repositories/${id}/bugs/github-issue/${issueNumber}`, {}, token);
+
+export const getBugMappingsHistory = (token: string, id: string) =>
+  request<unknown[]>(`/repositories/${id}/bugs/history`, {}, token);
+

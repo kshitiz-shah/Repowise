@@ -3,6 +3,7 @@ import ArchitectureGraph from "./ArchitectureGraph";
 import * as api from "./api";
 import type { Answer, Architecture, Repository, Session } from "./api";
 import { FormattedAnswer } from "./components/FormattedAnswer";
+import { BugTriage } from "./components/BugTriage";
 
 const storedSession = (): Session | null => {
   try {
@@ -378,6 +379,7 @@ function RepositoryPanel({
   run: (label: string, action: () => Promise<void>) => Promise<void>;
 }) {
   const [question, setQuestion] = useState("");
+  const [activeTab, setActiveTab] = useState<"bugs" | "architecture" | "qa">("bugs");
 
   return (
     <>
@@ -420,36 +422,101 @@ function RepositoryPanel({
         </button>
       </div>
 
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">System Architecture</p>
-            <h3>Hierarchical Architecture Explorer</h3>
+      {/* Feature Tabs */}
+      <div
+        className="arch-tab-group"
+        style={{
+          margin: "1.25rem 0 1rem",
+          paddingBottom: "0.6rem",
+          borderBottom: "1px solid var(--border-subtle)",
+          display: "flex",
+          gap: "0.5rem",
+        }}
+      >
+        <button
+          type="button"
+          className={`arch-tab-btn ${activeTab === "bugs" ? "active" : ""}`}
+          onClick={() => setActiveTab("bugs")}
+        >
+          🐛 Bug → File Mapping{" "}
+          <span
+            style={{
+              fontSize: "0.68rem",
+              padding: "0.15rem 0.45rem",
+              borderRadius: "9999px",
+              background: "var(--terracotta)",
+              color: "#FFFFFF",
+              marginLeft: "0.4rem",
+              fontWeight: 700,
+            }}
+          >
+            NEW
+          </span>
+        </button>
+        <button
+          type="button"
+          className={`arch-tab-btn ${activeTab === "architecture" ? "active" : ""}`}
+          onClick={() => setActiveTab("architecture")}
+        >
+          🗺️ System Architecture
+        </button>
+        <button
+          type="button"
+          className={`arch-tab-btn ${activeTab === "qa" ? "active" : ""}`}
+          onClick={() => setActiveTab("qa")}
+        >
+          💬 Code Q&A Assistant
+        </button>
+      </div>
+
+      {/* Tab 1: Bug Localization */}
+      {activeTab === "bugs" && (
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Multi-Signal Bug Localization</p>
+              <h3>Identify Responsible Files for GitHub Issues</h3>
+            </div>
           </div>
-          {graph && (
-            <span className="badge">
-              {graph.statistics
-                ? `${graph.statistics.files} files · ${graph.statistics.folders} folders · ${graph.statistics.dependencies} imports`
-                : `${graph.nodes.length} nodes`}
-            </span>
+          <BugTriage repository={repository} token={token} run={run} loading={loading} />
+        </section>
+      )}
+
+      {/* Tab 2: System Architecture */}
+      {activeTab === "architecture" && (
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">System Architecture</p>
+              <h3>Hierarchical Architecture Explorer</h3>
+            </div>
+            {graph && (
+              <span className="badge">
+                {graph.statistics
+                  ? `${graph.statistics.files} files · ${graph.statistics.folders} folders · ${graph.statistics.dependencies} imports`
+                  : `${graph.nodes.length} nodes`}
+              </span>
+            )}
+          </div>
+          {graph ? (
+            <ArchitectureGraph graph={graph} />
+          ) : (
+            <p className="empty">Select “Generate Architecture” to map the hierarchical repository architecture.</p>
           )}
-        </div>
-        {graph ? (
-          <ArchitectureGraph graph={graph} />
-        ) : (
-          <p className="empty">Select “Generate Architecture” to map the hierarchical repository architecture.</p>
-        )}
-      </section>
+        </section>
+      )}
 
-      <section className="panel">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">Code Q&A Assistant</p>
-            <h3>Ask the indexed repository</h3>
+      {/* Tab 3: Code Q&A */}
+      {activeTab === "qa" && (
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="eyebrow">Code Q&A Assistant</p>
+              <h3>Ask the indexed repository</h3>
+            </div>
           </div>
-        </div>
 
-        <div className="qa-suggestions">
+          <div className="qa-suggestions">
           <span className="qa-suggestions-label">Try asking:</span>
           {[
             "How does authentication and authorization work?",
@@ -512,6 +579,7 @@ function RepositoryPanel({
           </div>
         )}
       </section>
+      )}
     </>
   );
 }

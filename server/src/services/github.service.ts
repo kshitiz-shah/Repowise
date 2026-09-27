@@ -100,3 +100,151 @@ export const getRepositorySourceFiles = async (repository: Pick<GitHubRepository
   if (!files.length) throw new ApiError(502, "GitHub source files could not be read", "GITHUB_REQUEST_FAILED");
   return files;
 };
+
+export interface GitHubCommitFile {
+  filename: string;
+  additions: number;
+  deletions: number;
+  status: string;
+}
+
+export interface GitHubCommit {
+  sha: string;
+  message: string;
+  author: string | null;
+  date: string | null;
+  files: GitHubCommitFile[];
+}
+
+export const getRecentCommits = async (
+  repository: Pick<GitHubRepositoryReference, "owner" | "name">,
+  maxCommits = 25
+): Promise<GitHubCommit[]> => {
+  try {
+    const listRes = await fetch(
+      `${env.GITHUB_API_URL}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/commits?per_page=${maxCommits}`,
+      {
+        headers: githubHeaders(),
+        signal: AbortSignal.timeout(15_000),
+      }
+    );
+    if (!listRes.ok) return [];
+
+    const rawCommits = (await listRes.json()) as Array<{
+      sha: string;
+      commit?: {
+        message?: string;
+        author?: { name?: string; date?: string };
+      };
+    }>;
+
+    if (!Array.isArray(rawCommits)) return [];
+
+    const commitsToFetch = rawCommits.slice(0, 15);
+    const detailedCommits = await Promise.all(
+      commitsToFetch.map(async (c): Promise<GitHubCommit | null> => {
+        try {
+          const detailRes = await fetch(
+            `${env.GITHUB_API_URL}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/commits/${encodeURIComponent(c.sha)}`,
+            {
+              headers: githubHeaders(),
+              signal: AbortSignal.timeout(10_000),
+            }
+          );
+          if (!detailRes.ok) {
+            return {
+              sha: c.sha,
+              message: c.commit?.message ?? "",
+              author: c.commit?.author?.name ?? null,
+              date: c.commit?.author?.date ?? null,
+              files: [],
+            };
+          }
+          const detailData = (await detailRes.json()) as {
+            sha: string;
+            commit?: {
+              message?: string;
+              author?: { name?: string; date?: string };
+            };
+            files?: Array<{
+              filename: string;
+              additions?: number;
+              deletions?: number;
+              status?: string;
+            }>;
+          };
+          return {
+            sha: detailData.sha,
+            message: detailData.commit?.message ?? "",
+            author: detailData.commit?.author?.name ?? null,
+            date: detailData.commit?.author?.date ?? null,
+            files: (detailData.files ?? []).map((f) => ({
+              filename: f.filename,
+              additions: f.additions ?? 0,
+              deletions: f.deletions ?? 0,
+              status: f.status ?? "modified",
+            })),
+          };
+        } catch {
+          return {
+            sha: c.sha,
+            message: c.commit?.message ?? "",
+            author: c.commit?.author?.name ?? null,
+            date: c.commit?.author?.date ?? null,
+            files: [],
+          };
+        }
+      })
+    );
+
+    return detailedCommits.filter((c): c is GitHubCommit => c !== null);
+  } catch {
+    return [];
+  }
+};
+
+export interface GitHubIssueDetails {
+  number: number;
+  title: string;
+  body: string | null;
+  state: string;
+  author: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export const getGitHubIssue = async (
+  repository: Pick<GitHubRepositoryReference, "owner" | "name">,
+  issueNumber: number
+): Promise<GitHubIssueDetails | null> => {
+  try {
+    const res = await fetch(
+      `${env.GITHUB_API_URL}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/issues/${issueNumber}`,
+      {
+        headers: githubHeaders(),
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      number: number;
+      title: string;
+      body: string | null;
+      state: string;
+      user?: { login?: string };
+      created_at?: string;
+      updated_at?: string;
+    };
+    return {
+      number: data.number,
+      title: data.title,
+      body: data.body ?? null,
+      state: data.state,
+      author: data.user?.login ?? null,
+      createdAt: data.created_at ?? null,
+      updatedAt: data.updated_at ?? null,
+    };
+  } catch {
+    return null;
+  }
+};

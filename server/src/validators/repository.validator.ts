@@ -23,3 +23,22 @@ export const issueAnalysisSchema = z.object({
   body: z.object({ number: z.number().int().positive(), title: z.string().trim().min(1).max(500), body: z.string().max(50_000).optional() }),
   query: z.object({}), params: z.object({ id: repositoryId }),
 });
+
+export const bugLocalizeSchema = z.object({
+  body: z.object({
+    number: z.number().int().positive(),
+    title: z.string().trim().min(1).max(500),
+    body: z.string().max(50_000).optional(),
+    topK: z.number().int().min(1).max(20).optional(),
+    includeExplanation: z.boolean().optional(),
+  }),
+  query: z.object({}),
+  params: z.object({ id: repositoryId }),
+});
+
+export const fetchGitHubIssueSchema = z.object({
+  body: z.object({}),
+  query: z.object({}),
+  params: z.object({ id: repositoryId, issueNumber: z.coerce.number().int().positive() }),
+});
+

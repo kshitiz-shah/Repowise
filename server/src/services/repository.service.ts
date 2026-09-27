@@ -24,7 +24,7 @@ export const createRepository = async (userId: string, githubUrl: string) => {
         data: {
           repositoryId: existing.id,
           userId,
-          role: RepositoryRole.COLLABORATOR,
+          role: RepositoryRole.MEMBER,
         },
       });
     }
