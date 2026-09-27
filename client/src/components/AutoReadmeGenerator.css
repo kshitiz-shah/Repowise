@@ -1,0 +1,263 @@
+/* Auto README Generator CSS - Terracotta / Editorial Aesthetic */
+
+.readme-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.readme-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: 8px;
+}
+
+.readme-view-toggles {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.readme-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.readme-evidence-card {
+  padding: 1.25rem;
+  border-radius: 8px;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.readme-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.readme-evidence-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.readme-evidence-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #64748b);
+}
+
+.readme-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.readme-tag {
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.76rem;
+  font-family: ui-monospace, monospace;
+  background: var(--bg-accent-subtle, #f1f5f9);
+  color: var(--text-primary, #1e293b);
+  border: 1px solid var(--border-subtle, #e2e8f0);
+}
+
+.readme-tag.tag-env {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.readme-tag.tag-script {
+  background: #eff6ff;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+
+.readme-tag.tag-tech {
+  background: #fff7ed;
+  color: #9a3412;
+  border-color: #fed7aa;
+}
+
+/* Document Display Box */
+.readme-display-box {
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.readme-display-header {
+  padding: 0.75rem 1.25rem;
+  background: var(--bg-accent-subtle, #f8fafc);
+  border-bottom: 1px solid var(--border-subtle, #e5e7eb);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+}
+
+.readme-preview-content {
+  padding: 2rem 2.5rem;
+  line-height: 1.65;
+  color: var(--text-primary, #111827);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.readme-preview-content h1 {
+  font-size: 2.2rem;
+  font-weight: 800;
+  border-bottom: 1px solid var(--border-subtle, #e5e7eb);
+  padding-bottom: 0.5rem;
+  margin-top: 0;
+  color: var(--text-primary, #0f172a);
+}
+
+.readme-preview-content h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-subtle, #f1f5f9);
+  padding-bottom: 0.35rem;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary, #1e293b);
+}
+
+.readme-preview-content h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.readme-preview-content p {
+  margin: 0.75rem 0;
+  color: var(--text-secondary, #334155);
+}
+
+.readme-preview-content blockquote {
+  border-left: 4px solid var(--terracotta, #c2410c);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: var(--text-muted, #64748b);
+  font-style: italic;
+}
+
+.readme-preview-content pre {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 1rem 1.25rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.readme-preview-content code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.86em;
+  background: var(--bg-accent-subtle, #f1f5f9);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+
+.readme-preview-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.readme-preview-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.88rem;
+}
+
+.readme-preview-content th,
+.readme-preview-content td {
+  border: 1px solid var(--border-subtle, #e2e8f0);
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+}
+
+.readme-preview-content th {
+  background: var(--bg-accent-subtle, #f8fafc);
+  font-weight: 600;
+}
+
+/* Raw Editor View */
+.readme-raw-editor {
+  width: 100%;
+  min-height: 480px;
+  padding: 1.25rem;
+  font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  border: none;
+  background: var(--bg-surface, #ffffff);
+  color: var(--text-primary, #1e293b);
+  resize: vertical;
+}
+
+/* Diff View */
+.readme-diff-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  divide-x: 1px solid var(--border-subtle, #e5e7eb);
+  min-height: 460px;
+}
+
+.readme-diff-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.readme-diff-pane-title {
+  padding: 0.65rem 1rem;
+  background: var(--bg-accent-subtle, #f8fafc);
+  border-bottom: 1px solid var(--border-subtle, #e5e7eb);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+}
+
+.readme-diff-body {
+  padding: 1rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: 520px;
+}
+
+.readme-diff-body.new-body {
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.readme-diff-body.old-body {
+  background: #fef2f2;
+  color: #7f1d1d;
+}

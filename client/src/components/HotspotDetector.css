@@ -1,0 +1,316 @@
+/* Hotspot Detector CSS - Terracotta / Editorial Aesthetic */
+
+.hotspots-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.hotspots-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.hotspot-stat-card {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hotspot-stat-card.critical .hotspot-stat-val { color: #dc2626; }
+.hotspot-stat-card.high .hotspot-stat-val { color: #ea580c; }
+.hotspot-stat-card.medium .hotspot-stat-val { color: #d97706; }
+.hotspot-stat-card.low .hotspot-stat-val { color: #0284c7; }
+
+.hotspot-stat-lbl {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #6b7280);
+}
+
+.hotspot-stat-val {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Component Heatmap Section */
+.hotspot-section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.component-heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+.component-risk-card {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.component-risk-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.component-risk-card.selected {
+  border-color: var(--terracotta, #c2410c);
+  background: var(--bg-accent-subtle, #fff7ed);
+}
+
+.component-risk-card.card-critical { border-top: 4px solid #dc2626; }
+.component-risk-card.card-high { border-top: 4px solid #ea580c; }
+.component-risk-card.card-medium { border-top: 4px solid #d97706; }
+.component-risk-card.card-low { border-top: 4px solid #0284c7; }
+
+.comp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.comp-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comp-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  color: var(--text-muted, #64748b);
+}
+
+.comp-metrics span strong {
+  color: var(--text-primary, #1e293b);
+}
+
+/* Scatter Matrix / Quadrant Box */
+.hotspot-matrix-card {
+  padding: 1.25rem;
+  border-radius: 8px;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.hotspot-matrix-chart {
+  position: relative;
+  height: 240px;
+  width: 100%;
+  border-left: 2px solid var(--border-subtle, #cbd5e1);
+  border-bottom: 2px solid var(--border-subtle, #cbd5e1);
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.2) 0%, rgba(240, 253, 244, 0.1) 100%);
+  border-radius: 0 6px 0 0;
+  margin-top: 0.5rem;
+}
+
+.matrix-axis-label-x {
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  margin-top: 0.35rem;
+}
+
+.matrix-axis-label-y {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+}
+
+.matrix-dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: translate(-50%, 50%);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.matrix-dot:hover {
+  transform: translate(-50%, 50%) scale(1.6);
+  z-index: 10;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+}
+
+.matrix-dot.dot-critical { background: #dc2626; }
+.matrix-dot.dot-high { background: #ea580c; }
+.matrix-dot.dot-medium { background: #d97706; }
+.matrix-dot.dot-low { background: #0284c7; }
+
+/* Toolbar & File Cards */
+.hotspot-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: 8px;
+}
+
+.hotspot-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.hotspot-file-card {
+  padding: 1.15rem;
+  border-radius: 8px;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hotspot-file-card:hover {
+  border-color: var(--border-hover, #cbd5e1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.hotspot-file-card.border-critical { border-left: 4px solid #dc2626; }
+.hotspot-file-card.border-high { border-left: 4px solid #ea580c; }
+.hotspot-file-card.border-medium { border-left: 4px solid #d97706; }
+.hotspot-file-card.border-low { border-left: 4px solid #0284c7; }
+
+.hotspot-file-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.hotspot-file-path {
+  font-family: ui-monospace, monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+  word-break: break-all;
+}
+
+.hotspot-file-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.78rem;
+  color: var(--text-muted, #64748b);
+  margin-top: 0.2rem;
+}
+
+.hotspot-risk-score-badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.score-critical { background: #fee2e2; color: #b91c1c; }
+.score-high { background: #ffedd5; color: #c2410c; }
+.score-medium { background: #fef3c7; color: #b45309; }
+.score-low { background: #e0f2fe; color: #0369a1; }
+
+.hotspot-meter-bar-track {
+  height: 6px;
+  width: 100%;
+  background: var(--border-subtle, #e2e8f0);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.hotspot-meter-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.fill-critical { background: #dc2626; }
+.fill-high { background: #ea580c; }
+.fill-medium { background: #d97706; }
+.fill-low { background: #0284c7; }
+
+.hotspot-signals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+  background: var(--bg-accent-subtle, #f8fafc);
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+}
+
+.hotspot-signal-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.hotspot-signal-item span:first-child {
+  color: var(--text-muted, #64748b);
+  font-size: 0.72rem;
+}
+
+.hotspot-signal-item span:last-child {
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+}
+
+.hotspot-drivers-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hotspot-driver-tag {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #334155);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hotspot-driver-tag::before {
+  content: "•";
+  color: var(--terracotta, #c2410c);
+  font-weight: bold;
+}

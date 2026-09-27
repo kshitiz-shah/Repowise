@@ -108,6 +108,71 @@ const TextBlock: React.FC<{ text: string }> = ({ text }) => {
       continue;
     }
 
+    // Markdown Tables (lines starting and ending with |)
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+      flushList();
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      i--; // adjust loop step
+
+      if (tableLines.length >= 2) {
+        const parseRow = (rowStr: string) =>
+          rowStr
+            .slice(1, -1)
+            .split("|")
+            .map((c) => c.trim());
+
+        const headers = parseRow(tableLines[0]);
+        const isSeparator = /^\|[\s\-:]+(\|[\s\-:]+)+\|$/.test(tableLines[1]);
+        const dataRows = (isSeparator ? tableLines.slice(2) : tableLines.slice(1)).map(parseRow);
+
+        elements.push(
+          <div key={`table-${elements.length}`} className="qa-table-wrapper">
+            <table className="qa-table">
+              <thead>
+                <tr>
+                  {headers.map((h, hi) => (
+                    <th key={hi}>{renderInlineFormatting(h)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dataRows.map((row, ri) => (
+                  <tr key={ri}>
+                    {row.map((cell, ci) => (
+                      <td key={ci}>{renderInlineFormatting(cell)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
+    }
+
+    // Horizontal Rule
+    if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
+      flushList();
+      elements.push(<hr key={`hr-${i}`} className="qa-hr" />);
+      continue;
+    }
+
+    // Blockquote
+    if (trimmed.startsWith("> ")) {
+      flushList();
+      elements.push(
+        <blockquote key={`quote-${i}`} className="qa-blockquote">
+          {renderInlineFormatting(trimmed.slice(2))}
+        </blockquote>
+      );
+      continue;
+    }
+
     // Headers
     if (trimmed.startsWith("### ")) {
       flushList();
@@ -174,9 +239,9 @@ const TextBlock: React.FC<{ text: string }> = ({ text }) => {
 };
 
 function renderInlineFormatting(text: string): React.ReactNode {
-  // Regex to parse **bold**, *italic*, `code`, and file paths
   const parts: React.ReactNode[] = [];
-  const regex = /(\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g;
+  // Regex to parse image ![alt](url), link [text](url), bold **bold**, italic *italic*, code `code`
+  const regex = /(!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -185,25 +250,48 @@ function renderInlineFormatting(text: string): React.ReactNode {
       parts.push(text.slice(lastIndex, match.index));
     }
 
-    if (match[2]) {
-      // Bold
+    if (match[2] !== undefined && match[3]) {
+      // Badge / Image: ![alt](url)
+      parts.push(
+        <img
+          key={`img-${match.index}`}
+          src={match[3]}
+          alt={match[2] || "badge"}
+          style={{ verticalAlign: "middle", maxHeight: "22px", margin: "0 2px" }}
+        />
+      );
+    } else if (match[4] && match[5]) {
+      // Link: [text](url)
+      parts.push(
+        <a
+          key={`link-${match.index}`}
+          href={match[5]}
+          target="_blank"
+          rel="noreferrer"
+          className="qa-link"
+        >
+          {match[4]}
+        </a>
+      );
+    } else if (match[6]) {
+      // Bold: **text**
       parts.push(
         <strong key={`b-${match.index}`} className="qa-bold">
-          {match[2]}
+          {match[6]}
         </strong>
       );
-    } else if (match[3]) {
-      // Italic
+    } else if (match[7]) {
+      // Italic: *text*
       parts.push(
         <em key={`i-${match.index}`} className="qa-italic">
-          {match[3]}
+          {match[7]}
         </em>
       );
-    } else if (match[4]) {
-      // Inline Code
+    } else if (match[8]) {
+      // Inline Code: `text`
       parts.push(
         <code key={`c-${match.index}`} className="qa-inline-code">
-          {match[4]}
+          {match[8]}
         </code>
       );
     }

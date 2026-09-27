@@ -8,6 +8,7 @@ interface BugTriageProps {
   token: string;
   run: (label: string, action: () => Promise<void>) => Promise<void>;
   loading: string | null;
+  initialIssue?: { number: number; title: string; body?: string | null } | null;
 }
 
 interface BugPreset {
@@ -38,22 +39,40 @@ const PRESETS: BugPreset[] = [
   },
 ];
 
-export function BugTriage({ repository, token, run, loading }: BugTriageProps) {
+export function BugTriage({ repository, token, run, loading, initialIssue }: BugTriageProps) {
+  const bugStorageKey = `repowise_bug_result_${repository.id}`;
+
   const [issueNumber, setIssueNumber] = useState<number>(42);
   const [issueTitle, setIssueTitle] = useState<string>(PRESETS[0].title);
   const [issueBody, setIssueBody] = useState<string>(PRESETS[0].body);
   const [topK, setTopK] = useState<number>(5);
   const [includeExplanation, setIncludeExplanation] = useState<boolean>(true);
   const [fetchingIssue, setFetchingIssue] = useState<boolean>(false);
-  const [result, setResult] = useState<BugLocalizationResult | null>(null);
+  const [result, setResult] = useState<BugLocalizationResult | null>(() => {
+    try {
+      const cached = sessionStorage.getItem(bugStorageKey);
+      return cached ? (JSON.parse(cached) as BugLocalizationResult) : null;
+    } catch {
+      return null;
+    }
+  });
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState<boolean>(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  // Sync initialIssue if provided
+  useEffect(() => {
+    if (initialIssue) {
+      setIssueNumber(initialIssue.number);
+      setIssueTitle(initialIssue.title);
+      setIssueBody(initialIssue.body || "");
+      setStatusMessage(`Loaded issue #${initialIssue.number} from Triage Board.`);
+    }
+  }, [initialIssue]);
+
   // Load history on repository change
   useEffect(() => {
-    setResult(null);
     setStatusMessage(null);
     api
       .getBugMappingsHistory(token, repository.id)
@@ -103,6 +122,9 @@ export function BugTriage({ repository, token, run, loading }: BugTriageProps) {
       });
       setResult(res);
       setExpandedIndex(0); // expand top candidate
+      try {
+        sessionStorage.setItem(bugStorageKey, JSON.stringify(res));
+      } catch {}
       // Refresh history
       api
         .getBugMappingsHistory(token, repository.id)

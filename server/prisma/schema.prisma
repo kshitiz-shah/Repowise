@@ -127,6 +127,7 @@ model File {
   size               Int?
   churnScore         Float?
   riskScore          Float?
+  hotspotEvidence    Json?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   repository         Repository         @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
@@ -162,6 +163,10 @@ model Issue {
   state            String
   labels           Json?
   author           String?
+  category         String?
+  triageReason     String?
+  triageConfidence Float?
+  relatedIssueIds  Json?
   githubCreatedAt  DateTime?
   githubUpdatedAt  DateTime?
   severity         IssueSeverity      @default(UNKNOWN)
@@ -210,6 +215,7 @@ model Analysis {
   startedAt    DateTime?
   completedAt  DateTime?
   error        String?
+  metadata     Json?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   repository   Repository     @relation(fields: [repositoryId], references: [id], onDelete: Cascade)

@@ -126,3 +126,166 @@ export const localizeBugWithAi = (
     180_000
   );
 
+export interface AiTriagedIssue {
+  number: number;
+  title: string;
+  body: string;
+  labels: string[];
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
+  severity_score: number;
+  category: string;
+  confidence: number;
+  reason: string;
+  affected_subsystem: string;
+  duplicate_group_id: string | null;
+  is_duplicate: boolean;
+  related_issues: Array<{
+    number: number;
+    title: string;
+    similarity: number;
+    relation_type: "DUPLICATE" | "RELATED" | "SIMILAR_TOPIC";
+  }>;
+}
+
+export interface AiTriageSummary {
+  total_issues: number;
+  critical_count: number;
+  high_count: number;
+  medium_count: number;
+  low_count: number;
+  unknown_count: number;
+  duplicate_groups_count: number;
+  categories_breakdown: Record<string, number>;
+}
+
+export interface AiBatchTriageResult {
+  repository_id: string;
+  summary: AiTriageSummary;
+  issues: AiTriagedIssue[];
+}
+
+export const triageIssuesWithAi = (
+  repositoryId: string,
+  issues: Array<{ number: number; title: string; body?: string | null; labels?: string[] }>,
+  architectureComponents: string[] = []
+) =>
+  requestAi<AiBatchTriageResult>(
+    "/api/triage/analyze",
+    {
+      repository_id: repositoryId,
+      issues: issues.map((i) => ({
+        number: i.number,
+        title: i.title,
+        body: i.body ?? "",
+        labels: i.labels ?? [],
+      })),
+      architecture_components: architectureComponents,
+    },
+    180_000
+  );
+
+// ==========================================
+// HOTSPOTS
+// ==========================================
+export interface AiHotspotComponent {
+  name: string;
+  risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  avg_risk_score: number;
+  max_risk_score: number;
+  file_count: number;
+  total_churn: number;
+  total_bug_density: number;
+}
+
+export interface AiHotspotFile {
+  id: string;
+  path: string;
+  name: string;
+  language: string | null;
+  lines_of_code: number;
+  churn_score: number;
+  risk_score: number;
+  risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  bug_count: number;
+  component_name: string | null;
+  evidence: {
+    churn_commits: number;
+    bug_associations: number;
+    bug_fix_commits: number;
+    in_degree: number;
+    drivers: string[];
+  };
+}
+
+export interface AiHotspotCalculationResult {
+  repository_id: string;
+  components: AiHotspotComponent[];
+  files: AiHotspotFile[];
+  high_risk_count: number;
+  medium_risk_count: number;
+  low_risk_count: number;
+}
+
+export const calculateHotspotsWithAi = (
+  repositoryId: string,
+  payload: {
+    files: Array<{ id: string; path: string; name?: string; language?: string | null; lines_of_code?: number; size?: number; component?: string | null }>;
+    commits: Array<{ sha: string; message: string; author?: string | null; date?: string | null; files: string[] }>;
+    bug_mappings: Array<{ file_id?: string; file_path: string; issue_number?: number; score?: number }>;
+    dependencies: Array<{ source_path: string; target_path: string; type?: string }>;
+  }
+) =>
+  requestAi<AiHotspotCalculationResult>(
+    "/api/hotspots/calculate",
+    {
+      repository_id: repositoryId,
+      ...payload,
+    },
+    60_000
+  );
+
+// ==========================================
+// AUTO README GENERATOR
+// ==========================================
+export interface AiReadmeResult {
+  repository_id: string;
+  project_name: string;
+  tagline: string;
+  overview: string;
+  architecture_summary: string;
+  tech_stack: Array<{ category: string; name: string }>;
+  quick_start: {
+    prerequisites: string[];
+    installation: string[];
+    environment_variables: Array<{ key: string; description: string; default?: string }>;
+    run_commands: Array<{ label: string; command: string }>;
+  };
+  key_modules: Array<{ path: string; role: string }>;
+  markdown: string;
+  existing_readme?: string | null;
+}
+
+export const generateReadmeWithAi = (
+  repositoryId: string,
+  payload: {
+    repository_name: string;
+    owner: string;
+    description?: string | null;
+    primary_language?: string | null;
+    files: Array<{ path: string; content: string }>;
+    architecture_summary?: string | null;
+    existing_readme?: string | null;
+  }
+) =>
+  requestAi<AiReadmeResult>(
+    "/api/readme/generate",
+    {
+      repository_id: repositoryId,
+      ...payload,
+    },
+    90_000
+  );
+
+
+
+

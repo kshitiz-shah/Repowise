@@ -86,6 +86,7 @@ export function MermaidDiagram({
   // Pan & Zoom state
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [transitionEnabled, setTransitionEnabled] = useState(false);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
@@ -176,15 +177,45 @@ export function MermaidDiagram({
     });
   }, [svgContent, components, selectedComponentId, onSelectComponent]);
 
-  // Zoom and Pan Handlers
+  // Zoom and Pan Handlers - Tuned for responsive, smooth, natural navigation
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    setZoom((prev) => Math.min(Math.max(0.3, prev * zoomFactor), 3.5));
+    setTransitionEnabled(false);
+
+    // Normalize delta across input devices:
+    // e.deltaMode 1: lines (standard mouse wheel), e.deltaMode 0: pixels (trackpad / high-res)
+    const isPinch = e.ctrlKey;
+    const rawDelta = e.deltaMode === 1 ? e.deltaY * 20 : e.deltaY;
+    const zoomSensitivity = isPinch ? 0.008 : 0.0022;
+    const delta = -rawDelta * zoomSensitivity;
+
+    // Responsive clamp: prevents runaway zoom without feeling sticky or sluggish
+    const clampedDelta = Math.max(-0.075, Math.min(0.075, delta));
+
+    setZoom((prevZoom) => {
+      const nextZoom = Math.min(Math.max(0.3, prevZoom * (1 + clampedDelta)), 3.5);
+      const roundedZoom = Number(nextZoom.toFixed(4));
+
+      // Anchor zoom around cursor position so diagram doesn't drift away
+      if (viewportRef.current) {
+        const rect = viewportRef.current.getBoundingClientRect();
+        const cursorX = e.clientX - (rect.left + rect.width / 2);
+        const cursorY = e.clientY - (rect.top + rect.height / 2);
+        const scaleRatio = roundedZoom / prevZoom;
+
+        setPan((prevPan) => ({
+          x: Math.round(prevPan.x - cursorX * (scaleRatio - 1)),
+          y: Math.round(prevPan.y - cursorY * (scaleRatio - 1)),
+        }));
+      }
+
+      return roundedZoom;
+    });
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return; // only left click
+    setTransitionEnabled(false);
     isDragging.current = true;
     dragStart.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
   }, [pan]);
@@ -201,9 +232,16 @@ export function MermaidDiagram({
     isDragging.current = false;
   }, []);
 
-  const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.2, 3.5));
-  const handleZoomOut = () => setZoom((prev) => Math.max(prev - 0.2, 0.3));
+  const handleZoomIn = () => {
+    setTransitionEnabled(true);
+    setZoom((prev) => Math.min(Number((prev + 0.18).toFixed(2)), 3.5));
+  };
+  const handleZoomOut = () => {
+    setTransitionEnabled(true);
+    setZoom((prev) => Math.max(Number((prev - 0.18).toFixed(2)), 0.3));
+  };
   const handleResetZoom = () => {
+    setTransitionEnabled(true);
     setZoom(1);
     setPan({ x: 0, y: 0 });
   };
@@ -398,7 +436,7 @@ export function MermaidDiagram({
               style={{
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                 transformOrigin: "center center",
-                transition: isDragging.current ? "none" : "transform 0.12s ease-out",
+                transition: transitionEnabled ? "transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)" : "none",
               }}
               dangerouslySetInnerHTML={{ __html: svgContent }}
             />

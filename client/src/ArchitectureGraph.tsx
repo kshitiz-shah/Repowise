@@ -269,6 +269,7 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
                     fitViewOptions={{ padding: 0.25 }}
                     minZoom={0.2}
                     maxZoom={2.0}
+                    zoomOnDoubleClick={false}
                     onPaneClick={clearSemanticSelection}
                     proOptions={{ hideAttribution: true }}
                   >
@@ -422,6 +423,7 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
               fitViewOptions={{ padding: 0.2 }}
               minZoom={0.15}
               maxZoom={2.5}
+              zoomOnDoubleClick={false}
               onPaneClick={clearFileSelection}
               proOptions={{ hideAttribution: true }}
             >

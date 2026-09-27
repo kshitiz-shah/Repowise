@@ -20,6 +20,42 @@ export interface GitHubSourceFile {
 }
 
 const sourceExtensions = new Set([".py", ".ts", ".tsx", ".js", ".jsx", ".java", ".go", ".rs", ".cs", ".c", ".h", ".cpp"]);
+const configBaseNames = new Set([
+  "package.json",
+  "tsconfig.json",
+  "pyproject.toml",
+  "requirements.txt",
+  "setup.py",
+  "setup.cfg",
+  "cargo.toml",
+  "go.mod",
+  "pom.xml",
+  "build.gradle",
+  "build.gradle.kts",
+  "dockerfile",
+  "docker-compose.yml",
+  "docker-compose.yaml",
+  "schema.prisma",
+  ".env.example",
+  ".env.sample",
+  ".env.template",
+  "makefile",
+]);
+
+const isConfigFile = (filePath: string): boolean => {
+  const baseName = filePath.split("/").pop()?.toLowerCase() ?? "";
+  return configBaseNames.has(baseName);
+};
+
+const isSourceFile = (filePath: string): boolean => {
+  const baseName = filePath.split("/").pop()?.toLowerCase() ?? "";
+  if (baseName.endsWith(".min.js") || baseName.endsWith(".min.css") || baseName.endsWith(".d.ts")) {
+    return false;
+  }
+  const ext = filePath.includes(".") ? filePath.slice(filePath.lastIndexOf(".")).toLowerCase() : "";
+  return sourceExtensions.has(ext);
+};
+
 const maxFiles = 100;
 const maxFileSizeBytes = 300_000;
 
@@ -84,7 +120,9 @@ export const getRepositorySourceFiles = async (repository: Pick<GitHubRepository
   }
   const tree = await treeResponse.json() as { truncated?: boolean; tree?: Array<{ path: string; type: string; size?: number }> };
   if (tree.truncated) throw new ApiError(422, "Repository is too large to analyze through the GitHub tree API", "REPOSITORY_TOO_LARGE");
-  const candidates = (tree.tree ?? []).filter((item) => item.type === "blob" && item.size !== undefined && item.size <= maxFileSizeBytes && sourceExtensions.has(item.path.slice(item.path.lastIndexOf(".")).toLowerCase())).slice(0, maxFiles);
+  const candidates = (tree.tree ?? [])
+    .filter((item) => item.type === "blob" && item.size !== undefined && item.size <= maxFileSizeBytes && isSourceFile(item.path))
+    .slice(0, maxFiles);
   if (!candidates.length) throw new ApiError(422, "No supported source files were found in this repository", "NO_SUPPORTED_SOURCE_FILES");
 
   const results = await Promise.all(candidates.map(async (file): Promise<GitHubSourceFile | null> => {
@@ -99,6 +137,48 @@ export const getRepositorySourceFiles = async (repository: Pick<GitHubRepository
   const files = results.filter((file): file is GitHubSourceFile => file !== null && file.content.length > 0);
   if (!files.length) throw new ApiError(502, "GitHub source files could not be read", "GITHUB_REQUEST_FAILED");
   return files;
+};
+
+export const getRepositoryConfigFiles = async (
+  repository: Pick<GitHubRepositoryReference, "owner" | "name"> & { defaultBranch: string | null }
+): Promise<GitHubSourceFile[]> => {
+  const branch = repository.defaultBranch ?? "HEAD";
+  let treeResponse: Response;
+  try {
+    treeResponse = await fetch(
+      `${env.GITHUB_API_URL}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+      {
+        headers: githubHeaders(),
+        signal: AbortSignal.timeout(20_000),
+      }
+    );
+  } catch {
+    return [];
+  }
+  if (!treeResponse.ok) return [];
+  const tree = (await treeResponse.json().catch(() => null)) as { tree?: Array<{ path: string; type: string; size?: number }> } | null;
+  const configBlobs = (tree?.tree ?? [])
+    .filter((item) => item.type === "blob" && item.size !== undefined && item.size <= maxFileSizeBytes && isConfigFile(item.path))
+    .slice(0, 15);
+
+  const results = await Promise.all(
+    configBlobs.map(async (file): Promise<GitHubSourceFile | null> => {
+      try {
+        const response = await fetch(
+          `${env.GITHUB_API_URL}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/contents/${file.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
+          {
+            headers: githubHeaders("application/vnd.github.raw+json"),
+            signal: AbortSignal.timeout(15_000),
+          }
+        );
+        if (!response.ok) return null;
+        return { path: file.path, content: await response.text(), size: file.size! };
+      } catch {
+        return null;
+      }
+    })
+  );
+  return results.filter((file): file is GitHubSourceFile => file !== null && file.content.length > 0);
 };
 
 export interface GitHubCommitFile {
@@ -248,3 +328,76 @@ export const getGitHubIssue = async (
     return null;
   }
 };
+
+export interface GitHubIssueSummary {
+  number: number;
+  title: string;
+  body: string | null;
+  state: string;
+  labels: string[];
+  author: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export const getOpenIssues = async (
+  repository: Pick<GitHubRepositoryReference, "owner" | "name">,
+  maxIssues = 50
+): Promise<GitHubIssueSummary[]> => {
+  try {
+    const res = await fetch(
+      `${env.GITHUB_API_URL}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/issues?state=open&per_page=${maxIssues}`,
+      {
+        headers: githubHeaders(),
+        signal: AbortSignal.timeout(15_000),
+      }
+    );
+    if (!res.ok) return [];
+    const items = (await res.json()) as Array<{
+      number: number;
+      title: string;
+      body: string | null;
+      state: string;
+      labels?: Array<{ name: string } | string>;
+      user?: { login?: string };
+      created_at?: string;
+      updated_at?: string;
+      pull_request?: unknown;
+    }>;
+    if (!Array.isArray(items)) return [];
+
+    return items
+      .filter((item) => !item.pull_request)
+      .map((item) => ({
+        number: item.number,
+        title: item.title,
+        body: item.body ?? null,
+        state: item.state,
+        labels: (item.labels ?? []).map((l) => (typeof l === "string" ? l : l.name)),
+        author: item.user?.login ?? null,
+        createdAt: item.created_at ?? null,
+        updatedAt: item.updated_at ?? null,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+export const getExistingReadme = async (
+  repository: Pick<GitHubRepositoryReference, "owner" | "name">
+): Promise<string | null> => {
+  try {
+    const res = await fetch(
+      `${env.GITHUB_API_URL}/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}/readme`,
+      {
+        headers: githubHeaders("application/vnd.github.raw+json"),
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
+  }
+};
+

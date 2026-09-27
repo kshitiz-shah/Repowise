@@ -1,0 +1,414 @@
+/* Bug Triage Board CSS - Terracotta / Editorial Aesthetic */
+
+.triage-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.triage-header-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.triage-stat-card {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.triage-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.triage-stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #6b7280);
+}
+
+.triage-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.triage-stat-card.critical .triage-stat-value { color: #dc2626; }
+.triage-stat-card.high .triage-stat-value { color: #ea580c; }
+.triage-stat-card.medium .triage-stat-value { color: #d97706; }
+.triage-stat-card.low .triage-stat-value { color: #2563eb; }
+.triage-stat-card.duplicates .triage-stat-value { color: #9333ea; }
+
+.triage-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: 8px;
+}
+
+.triage-search-box {
+  flex: 1;
+  min-width: 240px;
+}
+
+.triage-search-input {
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle, #d1d5db);
+  background: var(--bg-input, #f9fafb);
+  color: var(--text-primary, #111827);
+  font-size: 0.9rem;
+}
+
+.triage-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.triage-pill {
+  padding: 0.4rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border-subtle, #d1d5db);
+  background: transparent;
+  color: var(--text-muted, #4b5563);
+  transition: all 0.15s ease;
+}
+
+.triage-pill:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.triage-pill.active {
+  background: var(--terracotta, #c2410c);
+  color: #ffffff;
+  border-color: var(--terracotta, #c2410c);
+}
+
+.triage-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.triage-btn {
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.triage-btn-primary {
+  background: var(--terracotta, #c2410c);
+  color: #ffffff;
+}
+
+.triage-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.triage-btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border-subtle, #d1d5db);
+  color: var(--text-primary, #111827);
+}
+
+.triage-btn-secondary:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.triage-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Issue List */
+.triage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.triage-card {
+  padding: 1.25rem;
+  background: var(--bg-surface, #ffffff);
+  border: 1px solid var(--border-subtle, #e5e7eb);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.triage-card:hover {
+  border-color: var(--border-hover, #cbd5e1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.triage-card.critical-border {
+  border-left: 4px solid #dc2626;
+}
+
+.triage-card.high-border {
+  border-left: 4px solid #ea580c;
+}
+
+.triage-card.medium-border {
+  border-left: 4px solid #d97706;
+}
+
+.triage-card.low-border {
+  border-left: 4px solid #2563eb;
+}
+
+.triage-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.triage-card-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.triage-issue-num {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  color: var(--text-muted, #6b7280);
+  margin-right: 0.5rem;
+}
+
+.triage-issue-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  text-decoration: none;
+}
+
+.triage-issue-title:hover {
+  color: var(--terracotta, #c2410c);
+}
+
+.triage-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.triage-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.severity-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.severity-critical { background: #fee2e2; color: #b91c1c; }
+.severity-high { background: #ffedd5; color: #c2410c; }
+.severity-medium { background: #fef3c7; color: #b45309; }
+.severity-low { background: #dbeafe; color: #1d4ed8; }
+.severity-unknown { background: #f3f4f6; color: #4b5563; }
+
+.category-badge {
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--bg-badge, #f1f5f9);
+  color: var(--text-primary, #334155);
+}
+
+.confidence-badge {
+  font-size: 0.72rem;
+  color: var(--text-muted, #64748b);
+  font-weight: 500;
+}
+
+.duplicate-alert-banner {
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  color: #6b21a8;
+  font-size: 0.82rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.duplicate-alert-banner strong {
+  font-weight: 700;
+}
+
+.related-issues-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.related-issue-chip {
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-family: ui-monospace, monospace;
+  background: #f3e8ff;
+  color: #7e22ce;
+  font-weight: 600;
+}
+
+.triage-reason-box {
+  padding: 0.75rem 0.95rem;
+  border-radius: 6px;
+  background: var(--bg-accent-subtle, #f8fafc);
+  border-left: 3px solid var(--terracotta, #c2410c);
+  font-size: 0.84rem;
+  color: var(--text-secondary, #334155);
+  line-height: 1.45;
+}
+
+.triage-mapped-files {
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  background: var(--bg-card-inner, #f8fafc);
+  border: 1px solid var(--border-subtle, #e2e8f0);
+}
+
+.triage-mapped-files-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 0.4rem;
+}
+
+.triage-mapped-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.triage-file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-family: ui-monospace, monospace;
+}
+
+.triage-file-path {
+  color: var(--text-primary, #1e293b);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.triage-file-score {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--terracotta, #c2410c);
+}
+
+.triage-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.35rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-subtle, #f1f5f9);
+}
+
+.triage-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.triage-label-pill {
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-muted, #6b7280);
+}
+
+.triage-map-btn {
+  padding: 0.35rem 0.75rem;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--terracotta, #c2410c);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: opacity 0.15s ease;
+}
+
+.triage-map-btn:hover {
+  opacity: 0.9;
+}
+
+.triage-empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: var(--bg-surface, #ffffff);
+  border: 1px dashed var(--border-subtle, #d1d5db);
+  border-radius: 8px;
+}
+
+.triage-empty-state h4 {
+  margin: 0.5rem 0;
+  font-size: 1.15rem;
+  color: var(--text-primary, #111827);
+}
+
+.triage-empty-state p {
+  color: var(--text-muted, #6b7280);
+  font-size: 0.9rem;
+  max-width: 480px;
+  margin: 0 auto 1.25rem;
+}

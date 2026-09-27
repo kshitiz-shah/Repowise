@@ -206,3 +206,155 @@ export const fetchGitHubIssue = (token: string, id: string, issueNumber: number)
 export const getBugMappingsHistory = (token: string, id: string) =>
   request<unknown[]>(`/repositories/${id}/bugs/history`, {}, token);
 
+// ==========================================
+// BUG TRIAGE BOARD
+// ==========================================
+export interface IssueFileMappingSummary {
+  id: string;
+  rank: number;
+  score: number;
+  confidence: number;
+  file: {
+    path: string;
+    name: string;
+    language: string | null;
+  };
+}
+
+export interface IssueItem {
+  id: string;
+  githubIssueId: string;
+  number: number;
+  title: string;
+  body: string | null;
+  state: string;
+  labels: string[];
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN" | null;
+  category: string | null;
+  triageReason: string | null;
+  triageConfidence: number | null;
+  relatedIssueIds: number[];
+  author: string | null;
+  githubCreatedAt: string | null;
+  githubUpdatedAt: string | null;
+  fileMappings?: IssueFileMappingSummary[];
+}
+
+export interface TriageSummary {
+  total_issues: number;
+  critical_count: number;
+  high_count: number;
+  medium_count: number;
+  low_count: number;
+  unknown_count: number;
+  duplicate_groups_count: number;
+  categories_breakdown: Record<string, number>;
+}
+
+export interface TriageDataResponse {
+  summary: TriageSummary;
+  issues: IssueItem[];
+  triaged_details?: Array<{
+    number: number;
+    title: string;
+    severity: string;
+    category: string;
+    reason: string;
+    affected_subsystem: string;
+    is_duplicate: boolean;
+    related_issues: Array<{
+      number: number;
+      title: string;
+      similarity: number;
+      relation_type: string;
+    }>;
+  }>;
+}
+
+export const syncIssues = (token: string, id: string) =>
+  request<{ synced_count: number; issues: IssueItem[] }>(`/repositories/${id}/issues/sync`, { method: "POST", body: "{}" }, token);
+
+export const getIssues = (token: string, id: string) =>
+  request<IssueItem[]>(`/repositories/${id}/issues`, {}, token);
+
+export const triageIssues = (token: string, id: string) =>
+  request<TriageDataResponse>(`/repositories/${id}/triage`, { method: "POST", body: "{}" }, token);
+
+export const getTriageData = (token: string, id: string) =>
+  request<TriageDataResponse>(`/repositories/${id}/triage`, {}, token);
+
+// ==========================================
+// HOTSPOT DETECTOR
+// ==========================================
+export interface HotspotComponentRisk {
+  name: string;
+  risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  avg_risk_score: number;
+  file_count: number;
+  total_churn: number;
+  total_bug_density: number;
+}
+
+export interface HotspotFileItem {
+  id: string;
+  path: string;
+  name: string;
+  language: string | null;
+  linesOfCode: number | null;
+  churnScore: number | null;
+  riskScore: number | null;
+  risk_level: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  bugCount: number;
+  componentName: string | null;
+  evidence?: {
+    churn_commits: number;
+    bug_associations: number;
+    bug_fix_commits: number;
+    in_degree: number;
+    drivers: string[];
+  };
+}
+
+export interface HotspotAnalysisResponse {
+  repository_id: string;
+  components: HotspotComponentRisk[];
+  files: HotspotFileItem[];
+  high_risk_count: number;
+  medium_risk_count: number;
+  low_risk_count: number;
+}
+
+export const getHotspots = (token: string, id: string) =>
+  request<HotspotAnalysisResponse>(`/repositories/${id}/hotspots`, {}, token);
+
+export const calculateHotspots = (token: string, id: string) =>
+  request<HotspotAnalysisResponse>(`/repositories/${id}/hotspots/calculate`, { method: "POST", body: "{}" }, token);
+
+// ==========================================
+// AUTO README GENERATOR
+// ==========================================
+export interface AutoReadmeResult {
+  repository_id: string;
+  project_name: string;
+  tagline: string;
+  overview: string;
+  architecture_summary: string;
+  tech_stack: Array<{ category: string; name: string }>;
+  quick_start: {
+    prerequisites: string[];
+    installation: string[];
+    environment_variables: Array<{ key: string; description: string; default?: string }>;
+    run_commands: Array<{ label: string; command: string }>;
+  };
+  key_modules: Array<{ path: string; role: string }>;
+  markdown: string;
+  existing_readme?: string | null;
+}
+
+export const generateReadme = (token: string, id: string) =>
+  request<AutoReadmeResult>(`/repositories/${id}/readme/generate`, { method: "POST", body: "{}" }, token);
+
+export const getReadme = (token: string, id: string) =>
+  request<AutoReadmeResult | { existing_readme: string | null }>(`/repositories/${id}/readme`, {}, token);
+
+

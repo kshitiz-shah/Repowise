@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.api.routes import architecture, bug_localization, health, indexing, issues, rag, test
+from app.api.routes import architecture, bug_localization, health, hotspots, indexing, issues, rag, readme, test, triage
 from app.config import get_settings
 from app.services.qdrant_service import QdrantUnavailableError
 from app.services.embedding_service import EmbeddingError
@@ -94,6 +94,9 @@ def create_app() -> FastAPI:
     app.include_router(architecture.router, prefix="/api")
     app.include_router(issues.router, prefix="/api")
     app.include_router(bug_localization.router, prefix="/api")
+    app.include_router(triage.router, prefix="/api")
+    app.include_router(hotspots.router, prefix="/api")
+    app.include_router(readme.router, prefix="/api")
 
     logger.info("Configured %s for %s", settings.service_name, settings.environment)
     return app

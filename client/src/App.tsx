@@ -4,6 +4,9 @@ import * as api from "./api";
 import type { Answer, Architecture, Repository, Session } from "./api";
 import { FormattedAnswer } from "./components/FormattedAnswer";
 import { BugTriage } from "./components/BugTriage";
+import { BugTriageBoard } from "./components/BugTriageBoard";
+import { HotspotDetector } from "./components/HotspotDetector";
+import { AutoReadmeGenerator } from "./components/AutoReadmeGenerator";
 
 const storedSession = (): Session | null => {
   try {
@@ -184,6 +187,7 @@ export default function App() {
         <div className="content">
           {selected ? (
             <RepositoryPanel
+              key={selected.id}
               repository={selected}
               token={session.accessToken}
               graph={graph}
@@ -379,7 +383,13 @@ function RepositoryPanel({
   run: (label: string, action: () => Promise<void>) => Promise<void>;
 }) {
   const [question, setQuestion] = useState("");
-  const [activeTab, setActiveTab] = useState<"bugs" | "architecture" | "qa">("bugs");
+  const [activeTab, setActiveTab] = useState<"architecture" | "qa" | "bugs" | "readme" | "triage" | "hotspots">("architecture");
+  const [selectedIssueForMapping, setSelectedIssueForMapping] = useState<{ number: number; title: string; body?: string | null } | null>(null);
+
+  const handleSelectIssueForMapping = (issue: { number: number; title: string; body?: string | null }) => {
+    setSelectedIssueForMapping(issue);
+    setActiveTab("bugs");
+  };
 
   return (
     <>
@@ -431,28 +441,9 @@ function RepositoryPanel({
           borderBottom: "1px solid var(--border-subtle)",
           display: "flex",
           gap: "0.5rem",
+          overflowX: "auto",
         }}
       >
-        <button
-          type="button"
-          className={`arch-tab-btn ${activeTab === "bugs" ? "active" : ""}`}
-          onClick={() => setActiveTab("bugs")}
-        >
-          🐛 Bug → File Mapping{" "}
-          <span
-            style={{
-              fontSize: "0.68rem",
-              padding: "0.15rem 0.45rem",
-              borderRadius: "9999px",
-              background: "var(--terracotta)",
-              color: "#FFFFFF",
-              marginLeft: "0.4rem",
-              fontWeight: 700,
-            }}
-          >
-            NEW
-          </span>
-        </button>
         <button
           type="button"
           className={`arch-tab-btn ${activeTab === "architecture" ? "active" : ""}`}
@@ -467,56 +458,68 @@ function RepositoryPanel({
         >
           💬 Code Q&A Assistant
         </button>
+        <button
+          type="button"
+          className={`arch-tab-btn ${activeTab === "bugs" ? "active" : ""}`}
+          onClick={() => setActiveTab("bugs")}
+        >
+          🐛 Bug → File Mapping
+        </button>
+        <button
+          type="button"
+          className={`arch-tab-btn ${activeTab === "readme" ? "active" : ""}`}
+          onClick={() => setActiveTab("readme")}
+        >
+          📝 Auto README
+        </button>
+        <button
+          type="button"
+          className={`arch-tab-btn ${activeTab === "triage" ? "active" : ""}`}
+          onClick={() => setActiveTab("triage")}
+        >
+          📋 Bug Triage Board
+        </button>
+        <button
+          type="button"
+          className={`arch-tab-btn ${activeTab === "hotspots" ? "active" : ""}`}
+          onClick={() => setActiveTab("hotspots")}
+        >
+          🔥 Hotspot Detector
+        </button>
       </div>
 
-      {/* Tab 1: Bug Localization */}
-      {activeTab === "bugs" && (
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Multi-Signal Bug Localization</p>
-              <h3>Identify Responsible Files for GitHub Issues</h3>
-            </div>
+      {/* Tab 1: System Architecture */}
+      <section className="panel" style={{ display: activeTab === "architecture" ? "block" : "none" }}>
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">System Architecture</p>
+            <h3>Hierarchical Architecture Explorer</h3>
           </div>
-          <BugTriage repository={repository} token={token} run={run} loading={loading} />
-        </section>
-      )}
-
-      {/* Tab 2: System Architecture */}
-      {activeTab === "architecture" && (
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">System Architecture</p>
-              <h3>Hierarchical Architecture Explorer</h3>
-            </div>
-            {graph && (
-              <span className="badge">
-                {graph.statistics
-                  ? `${graph.statistics.files} files · ${graph.statistics.folders} folders · ${graph.statistics.dependencies} imports`
-                  : `${graph.nodes.length} nodes`}
-              </span>
-            )}
-          </div>
-          {graph ? (
-            <ArchitectureGraph graph={graph} />
-          ) : (
-            <p className="empty">Select “Generate Architecture” to map the hierarchical repository architecture.</p>
+          {graph && (
+            <span className="badge">
+              {graph.statistics
+                ? `${graph.statistics.files} files · ${graph.statistics.folders} folders · ${graph.statistics.dependencies} imports`
+                : `${graph.nodes.length} nodes`}
+            </span>
           )}
-        </section>
-      )}
+        </div>
+        {graph ? (
+          <ArchitectureGraph graph={graph} />
+        ) : (
+          <p className="empty">Select “Generate Architecture” to map the hierarchical repository architecture.</p>
+        )}
+      </section>
 
-      {/* Tab 3: Code Q&A */}
-      {activeTab === "qa" && (
-        <section className="panel">
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">Code Q&A Assistant</p>
-              <h3>Ask the indexed repository</h3>
-            </div>
+      {/* Tab 2: Code Q&A */}
+      <section className="panel" style={{ display: activeTab === "qa" ? "block" : "none" }}>
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Code Q&A Assistant</p>
+            <h3>Ask the indexed repository</h3>
           </div>
+        </div>
 
-          <div className="qa-suggestions">
+        <div className="qa-suggestions">
           <span className="qa-suggestions-label">Try asking:</span>
           {[
             "How does authentication and authorization work?",
@@ -545,15 +548,11 @@ function RepositoryPanel({
           }}
         >
           <input
-            required
-            minLength={3}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
-            placeholder="e.g. How does authentication work or where are database models defined?"
+            placeholder="Ask anything about architecture, flow, dependencies, or modules…"
           />
-          <button disabled={loading !== null}>
-            {loading === "question" ? "Analyzing…" : "Ask Question"}
-          </button>
+          <button disabled={loading !== null || !question.trim()}>Ask</button>
         </form>
 
         {answer && (
@@ -579,7 +578,62 @@ function RepositoryPanel({
           </div>
         )}
       </section>
-      )}
+
+      {/* Tab 3: Bug Localization */}
+      <section className="panel" style={{ display: activeTab === "bugs" ? "block" : "none" }}>
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Multi-Signal Bug Localization</p>
+            <h3>Identify Responsible Files for GitHub Issues</h3>
+          </div>
+        </div>
+        <BugTriage
+          repository={repository}
+          token={token}
+          run={run}
+          loading={loading}
+          initialIssue={selectedIssueForMapping}
+        />
+      </section>
+
+      {/* Tab 4: Auto README Generator */}
+      <section className="panel" style={{ display: activeTab === "readme" ? "block" : "none" }}>
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Code-Grounded Documentation Agent</p>
+            <h3>Auto README Generator</h3>
+          </div>
+        </div>
+        <AutoReadmeGenerator repository={repository} token={token} run={run} loading={loading} />
+      </section>
+
+      {/* Tab 5: Bug Triage Board */}
+      <section className="panel" style={{ display: activeTab === "triage" ? "block" : "none" }}>
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Issue Intelligence & Duplicate Clustering</p>
+            <h3>Bug Triage Board</h3>
+          </div>
+        </div>
+        <BugTriageBoard
+          repository={repository}
+          token={token}
+          run={run}
+          loading={loading}
+          onSelectIssueForMapping={handleSelectIssueForMapping}
+        />
+      </section>
+
+      {/* Tab 6: Hotspot Detector */}
+      <section className="panel" style={{ display: activeTab === "hotspots" ? "block" : "none" }}>
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Architectural Risk & Maintenance Telemetry</p>
+            <h3>Hotspot Detector</h3>
+          </div>
+        </div>
+        <HotspotDetector repository={repository} token={token} run={run} loading={loading} />
+      </section>
     </>
   );
 }
