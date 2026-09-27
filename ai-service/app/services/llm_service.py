@@ -116,8 +116,18 @@ class LLMService:
         return question
 
     def generate_structured(self, prompt: str, output_type: type[T]) -> T:
-        raw = self.generate_text(f"{prompt}\n\nReturn valid JSON only.")
+        raw = self.generate_text(
+            f"{prompt}\n\n"
+            "CRITICAL: Return ONLY a valid JSON object. No markdown fences, no explanation, no preamble. "
+            "Start with {{ and end with }}. Do not wrap in ```json blocks."
+        )
         cleaned = raw.strip()
+
+        # Strip Qwen3 / DeepSeek thinking tags
+        import re
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL).strip()
+
+        # Strip markdown fences
         if cleaned.startswith("```"):
             lines = cleaned.splitlines()
             if lines and lines[0].startswith("```"):
@@ -125,6 +135,7 @@ class LLMService:
             if lines and lines[-1].startswith("```"):
                 lines = lines[:-1]
             cleaned = "\n".join(lines).strip()
+
         try:
             return output_type.model_validate(json.loads(cleaned))
         except (json.JSONDecodeError, ValueError) as error:
@@ -136,7 +147,7 @@ class LLMService:
                     return output_type.model_validate(json.loads(cleaned[start : end + 1]))
                 except Exception:
                     pass
-            logger.warning("LLM structured validation failed on raw output: %s", raw[:300])
+            logger.warning("LLM structured validation failed on raw output (first 500 chars): %s", raw[:500])
             raise LLMUnavailableError("LLM returned invalid structured output") from error
 
 

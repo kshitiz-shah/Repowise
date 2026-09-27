@@ -5,6 +5,7 @@ from typing import Any
 
 from app.api.schemas.architecture import (
     ArchitectureComponent,
+    ArchitectureGroup,
     ArchitectureRelationship,
     ComponentEvidence,
     ExecutionFlow,
@@ -15,6 +16,7 @@ from app.api.schemas.architecture import (
 from app.models.document import CodeDocument
 from app.services.llm_service import LLMService, LLMUnavailableError
 from app.utils.parsing import extract_imports, resolve_import
+from app.utils.mermaid_compiler import compile_mermaid_architecture
 
 logger = logging.getLogger("repowise.ai.architecture_agent")
 
@@ -31,15 +33,18 @@ class ArchitectureAgent:
         documents: list[CodeDocument],
     ) -> SemanticArchitecture:
         if not documents:
-            return SemanticArchitecture(
+            empty_arch = SemanticArchitecture(
                 title="Empty Repository",
                 summary="No source files were available to analyze.",
                 architecture_style="None",
                 entry_points=[],
+                groups=[],
                 components=[],
                 relationships=[],
                 flows=[],
             )
+            empty_arch.mermaid_code = compile_mermaid_architecture(empty_arch)
+            return empty_arch
 
         # 1. Gather comprehensive static repository evidence
         context = self._build_repository_context(documents)
@@ -50,13 +55,17 @@ class ArchitectureAgent:
                 semantic_arch = self._synthesize_with_llm(repository_id, context, documents)
                 validated = self._validate_and_sanitize(semantic_arch, documents, context)
                 if validated.components:
+                    validated.mermaid_code = compile_mermaid_architecture(validated)
                     logger.info("Successfully synthesized architecture with LLM for %s", repository_id)
                     return validated
             except Exception as e:
                 logger.warning("LLM architecture synthesis failed (%s), using deterministic fallback", e)
 
         # 3. Deterministic code-grounded fallback
-        return self._generate_deterministic_architecture(repository_id, documents, context)
+        deterministic_arch = self._generate_deterministic_architecture(repository_id, documents, context)
+        deterministic_arch.mermaid_code = compile_mermaid_architecture(deterministic_arch)
+        return deterministic_arch
+
 
     def _build_repository_context(self, documents: list[CodeDocument]) -> dict[str, Any]:
         file_paths = [doc.file_path for doc in documents]
@@ -199,49 +208,132 @@ class ArchitectureAgent:
         if not self._llm:
             raise LLMUnavailableError("No LLM service configured")
 
-        prompt = f"""You are a Principal Software Architect analyzing an unfamiliar repository to explain its complete working architecture.
-Repository ID: {repository_id}
+        # Build a compact but information-rich file listing with actual code snippets
+        file_listing = self._format_files(context["files"])
 
-STATIC CODE EVIDENCE:
-- Technologies: {", ".join(context["detected_technologies"]) or "Standard"}
-- External Integrations / SDKs: {", ".join(context["external_sdks"]) or "None"}
-- Entry Points: {", ".join(context["entry_points"]) or "None identified"}
-- Discovered API Routes:
+        # Build a sample code snippets section for the most important files
+        key_snippets = self._build_key_snippets(documents, context)
+
+        prompt = f"""You are a Principal Software Architect. Analyze this repository and produce a PRECISE system architecture diagram specification.
+
+REPOSITORY: {repository_id}
+
+═══ HARD EVIDENCE (from static code analysis) ═══
+
+Technologies: {", ".join(context["detected_technologies"]) or "Standard"}
+External SDKs: {", ".join(context["external_sdks"]) or "None"}
+Entry Points: {", ".join(context["entry_points"]) or "Not identified"}
+Directory Structure: {context["directory_clusters"]}
+
+API Routes:
 {self._format_routes(context["routes"])}
-- Database Models & Schemas:
+
+Database Models:
 {self._format_models(context["models"])}
-- Config / Manifest Files:
+
+Config Files:
 {self._format_configs(context["configs"])}
-- Directory Structure: {context["directory_clusters"]}
-- Source Files & Exported Symbols (Sample):
-{self._format_files(context["files"])}
 
-TASK:
-Synthesize an in-depth, code-grounded, multi-level architectural representation explaining HOW this system actually executes.
-DO NOT merely list top-level folders. Trace how requests enter, move through routing -> controllers -> services -> data access / external integrations, and return.
+Source Files:
+{file_listing}
 
-REQUIREMENTS:
-1. "title": Descriptive architecture title (e.g. "RepoWise Full-Stack Code Intelligence Architecture").
-2. "summary": 3-5 sentences explaining runtime request execution, business logic, storage, and external integrations.
-3. "architecture_style": One of "Modular Monolith", "Client-Server (Multi-Tier)", "Microservices", "Event-Driven", or specific architecture style.
-4. "entry_points": List of identified entry point files.
-5. "components": List of 4 to 8 concrete subsystems. For each component:
-   - "id": lowercase slug (e.g. "frontend_client", "api_gateway", "auth_subsystem", "indexing_engine", "database_layer")
-   - "name": human-readable title (e.g. "React Frontend Client", "Express API & Routing", "Authentication Subsystem")
-   - "type": one of "frontend", "backend", "api", "service", "database", "cache", "queue", "authentication", "business_logic", "data_access", "storage", "infrastructure", "middleware"
-   - "description": 2-3 sentences explaining its exact responsibility and implementation.
-   - "responsibilities": 3-5 concrete bullet points.
-   - "files": exact file paths from the repository that implement this component.
-   - "symbols": key function / class / interface names declared in these files.
-   - "routes": API endpoints handled by this component (if applicable).
-   - "internal_flow": 2 to 5 internal steps showing symbol-to-symbol execution (e.g. from "authController.login" to "authService.validatePassword" with action "verifies hashed password").
-   - "evidence": {{"files": [...], "symbols": [...], "imports": [...], "routes": [...], "keywords": [...]}}
-6. "relationships": Directional connections between components (source, target, type, label, description).
-7. "flows": 3 to 5 end-to-end execution flows (e.g. "User Authentication", "Repository Analysis Flow", "Code Q&A RAG Flow") tracing step-by-step from component to component with actions, files, and symbols.
+Key Code Snippets:
+{key_snippets}
 
-STRICT RULE: Only use files and technologies that actually exist in the provided static evidence. Do not hallucinate imaginary databases or queues.
+═══ YOUR TASK ═══
+
+Generate a JSON object with EXACTLY this structure. Every field is required:
+
+{{
+  "title": "<Descriptive Title> Architecture",
+  "summary": "3-5 sentences explaining how data flows through the system at runtime.",
+  "architecture_style": "Client-Server" | "Modular Monolith" | "Microservices" | "Event-Driven" | "Layered",
+  "entry_points": ["file1.py", "server.ts"],
+  "groups": [
+    {{"id": "group_xxx", "label": "Human-Readable Layer Name"}}
+  ],
+  "components": [
+    {{
+      "id": "lowercase_slug",
+      "name": "Human Readable Name",
+      "type": "frontend|backend|api|service|database|cache|queue|authentication|middleware|infrastructure",
+      "shape": "box|database|circle|queue|hexagon",
+      "group_id": "group_xxx",
+      "description": "2-3 sentences on what this does and how.",
+      "responsibilities": ["Bullet 1", "Bullet 2", "Bullet 3"],
+      "files": ["exact/path/from/evidence.py"],
+      "symbols": ["functionName", "ClassName"],
+      "routes": ["/api/endpoint"],
+      "internal_flow": [
+        {{"from_symbol": "handler", "to_symbol": "service", "action": "validates and forwards request", "file_path": "exact/path.py"}}
+      ],
+      "evidence": {{"files": [], "symbols": [], "imports": [], "routes": [], "keywords": []}}
+    }}
+  ],
+  "relationships": [
+    {{"source": "component_id_1", "target": "component_id_2", "type": "CALLS|READS|WRITES|ASYNC|PUBLISHES", "label": "Short verb phrase", "style": "solid|dashed", "description": "One sentence"}}
+  ],
+  "flows": [
+    {{
+      "name": "Flow Name (e.g. User Authentication)",
+      "description": "How data moves end-to-end for this use case.",
+      "steps": [
+        {{"component": "component_id", "action": "What happens here", "file": "path/to/file.py", "symbol": "functionName"}}
+      ]
+    }}
+  ]
+}}
+
+═══ STRICT RULES ═══
+
+1. ONLY reference files that appear in the Source Files list above. Do NOT invent file paths.
+2. Create 4-10 components. Each must map to real files.
+3. Create 3-6 groups to organize components into logical layers.
+4. Shape rules: "database" for any DB/cache/store, "circle" for user/browser/actor, "queue" for workers/queues, "box" for everything else.
+5. Create meaningful relationships showing HOW data flows (not just "interacts with").
+6. Create 2-4 end-to-end flows tracing real user scenarios.
+7. Component IDs must be lowercase slugs using only [a-z0-9_].
+8. Relationship source/target must exactly match component IDs.
+9. Return ONLY the JSON object. No markdown fences, no explanation.
 """
         return self._llm.generate_structured(prompt, SemanticArchitecture)
+
+    def _build_key_snippets(self, documents: list[CodeDocument], context: dict[str, Any]) -> str:
+        """Extract brief code snippets from the most architecturally significant files."""
+        snippets: list[str] = []
+        priority_files = set(context.get("entry_points", []))
+
+        # Add route-owning files
+        for r in context.get("routes", []):
+            priority_files.add(r["file"])
+
+        # Add config files
+        for c in context.get("configs", []):
+            priority_files.add(c["path"])
+
+        # Grab snippets from priority files, then fill with highest-symbol files
+        seen = set()
+        for doc in documents:
+            if doc.file_path in priority_files and doc.file_path not in seen:
+                seen.add(doc.file_path)
+                lines = doc.content.splitlines()[:40]
+                snippets.append(f"--- {doc.file_path} (first 40 lines) ---\n" + "\n".join(lines))
+            if len(snippets) >= 8:
+                break
+
+        # Fill remaining slots with files that have the most symbols
+        file_syms = context.get("file_symbols", {})
+        ranked = sorted(file_syms.items(), key=lambda x: len(x[1]), reverse=True)
+        for fpath, syms in ranked:
+            if fpath not in seen and len(snippets) < 12:
+                seen.add(fpath)
+                doc = next((d for d in documents if d.file_path == fpath), None)
+                if doc:
+                    lines = doc.content.splitlines()[:30]
+                    snippets.append(f"--- {fpath} (first 30 lines) ---\n" + "\n".join(lines))
+
+        return "\n\n".join(snippets) if snippets else "No key snippets extracted."
+
 
     def _format_routes(self, routes: list[dict[str, Any]]) -> str:
         if not routes:
@@ -277,6 +369,10 @@ STRICT RULE: Only use files and technologies that actually exist in the provided
         valid_comp_ids: set[str] = set()
         sanitized_components: list[ArchitectureComponent] = []
 
+        # Validate Groups
+        groups = arch.groups or []
+        group_id_set = {g.id for g in groups}
+
         for comp in arch.components:
             comp_id = re.sub(r"[^a-z0-9_-]", "_", comp.id.lower().strip()) or "component"
             if comp_id in valid_comp_ids:
@@ -291,6 +387,22 @@ STRICT RULE: Only use files and technologies that actually exist in the provided
                         matched_files.append(target)
 
             evidence_files = [f for f in comp.evidence.files if f in all_paths] or matched_files[:6]
+
+            # Validate shape
+            shape = comp.shape or "box"
+            words = f"{comp.name} {comp.type} {comp_id}".lower()
+            if shape == "box":
+                if any(w in words for w in ("database", "storage", "cache", "postgres", "sqlite", "redis", "qdrant", "prisma")):
+                    shape = "database"
+                elif any(w in words for w in ("actor", "user", "browser", "client")):
+                    shape = "circle"
+                elif any(w in words for w in ("queue", "worker", "task", "job")):
+                    shape = "queue"
+
+            # Validate group
+            group_id = comp.group_id
+            if group_id and group_id not in group_id_set:
+                group_id = None
 
             # Validate internal flow file paths
             sanitized_internal_flow: list[InternalFlowStep] = []
@@ -310,6 +422,8 @@ STRICT RULE: Only use files and technologies that actually exist in the provided
                     id=comp_id,
                     name=comp.name or comp_id.replace("_", " ").title(),
                     type=comp.type or "service",
+                    shape=shape,
+                    group_id=group_id,
                     description=comp.description or f"Handles {comp.name} operations.",
                     responsibilities=comp.responsibilities or ["Core subsystem responsibility"],
                     files=matched_files,
@@ -343,6 +457,7 @@ STRICT RULE: Only use files and technologies that actually exist in the provided
                             target=tgt,
                             type=rel.type or "CALLS",
                             label=rel.label or "Interacts with",
+                            style=rel.style or "solid",
                             description=rel.description,
                         )
                     )
@@ -353,7 +468,6 @@ STRICT RULE: Only use files and technologies that actually exist in the provided
             valid_steps: list[ExecutionFlowStep] = []
             for step in flow.steps:
                 c_id = re.sub(r"[^a-z0-9_-]", "_", step.component.lower().strip())
-                # match with closest valid component id or name
                 matched_c = next((cid for cid in valid_comp_ids if cid == c_id or cid in c_id or c_id in cid), c_id)
                 valid_steps.append(
                     ExecutionFlowStep(
@@ -377,10 +491,12 @@ STRICT RULE: Only use files and technologies that actually exist in the provided
             summary=arch.summary or "High-level modular architecture of the application.",
             architecture_style=arch.architecture_style or "Modular Architecture",
             entry_points=arch.entry_points or context.get("entry_points", []),
+            groups=groups,
             components=sanitized_components,
             relationships=sanitized_relationships,
             flows=sanitized_flows,
         )
+
 
     def _generate_deterministic_architecture(
         self,
@@ -388,278 +504,316 @@ STRICT RULE: Only use files and technologies that actually exist in the provided
         documents: list[CodeDocument],
         context: dict[str, Any],
     ) -> SemanticArchitecture:
-        """Deterministic, deeply code-grounded fallback constructing multi-level architecture from static AST signals."""
+        """Dynamic, code-grounded architecture synthesizer constructing GitDiagram-grade system architecture."""
         all_paths = {doc.file_path for doc in documents}
-        components: list[ArchitectureComponent] = []
-        relationships: list[ArchitectureRelationship] = []
-        flows: list[ExecutionFlow] = []
+        
+        # 1. Filter out pure test data / fixtures if real source files exist
+        source_docs = [
+            d for d in documents
+            if not any(t in d.file_path.lower() for t in ("/test/", "/tests/", "__test__", ".spec.", ".test.", "/acceptance/"))
+        ]
+        if not source_docs or len(source_docs) < 3:
+            source_docs = documents
 
-        # Partition files into architectural roles
-        frontend_files: list[str] = []
-        api_files: list[str] = []
-        service_files: list[str] = []
-        auth_files: list[str] = []
-        db_files: list[str] = []
-        ai_files: list[str] = []
-        other_files: list[str] = []
-
+        # Build file-level import graph
+        file_to_imports: dict[str, list[str]] = {}
         for doc in documents:
-            p_lower = doc.file_path.lower()
-            if any(term in p_lower for term in ("client/", "frontend/", "/components/", "/hooks/", "app.tsx", "main.tsx")):
-                frontend_files.append(doc.file_path)
-            elif any(term in p_lower for term in ("auth", "jwt", "session", "passport", "login")):
-                auth_files.append(doc.file_path)
-            elif any(term in p_lower for term in ("routes/", "controllers/", "api/", "router", "endpoint")):
-                api_files.append(doc.file_path)
-            elif any(term in p_lower for term in ("model", "prisma", "database", "db/", "repository", "schema", "entities")):
-                db_files.append(doc.file_path)
-            elif any(term in p_lower for term in ("ai-service", "rag", "vector", "qdrant", "llm", "embedding", "agent")):
-                ai_files.append(doc.file_path)
-            elif any(term in p_lower for term in ("services/", "service.ts", "service.py", "business")):
-                service_files.append(doc.file_path)
+            raw_imports = extract_imports(doc.content, doc.language)
+            resolved = [
+                resolve_import(doc.file_path, imp, all_paths, doc.language)
+                for imp in raw_imports
+            ]
+            file_to_imports[doc.file_path] = [r for r in resolved if r and r in all_paths]
+
+        # Key entry file patterns
+        entry_patterns = {
+            "index.js", "index.ts", "main.py", "app.py", "server.ts", "server.js",
+            "app.ts", "main.go", "app.tsx", "main.tsx", "run.py", "express.js",
+        }
+
+        # Role keywords for smarter naming
+        ROLE_HINTS = {
+            "frontend": {"keywords": ("client", "browser", "user", "frontend", "view", "react", "ui", "template", "component", "page", "layout", ".tsx", ".jsx"), "type": "frontend", "shape": "box", "group_id": "group_ui", "group_label": "Presentation & UI", "suffix": "Interface"},
+            "api": {"keywords": ("route", "router", "controller", "api", "endpoint", "request", "response", "http", "handler", "middleware"), "type": "api", "shape": "box", "group_id": "group_http", "group_label": "HTTP & Routing Layer", "suffix": "API"},
+            "database": {"keywords": ("database", "storage", "cache", "postgres", "sqlite", "redis", "qdrant", "prisma", "model", "db", "repository", "migration", "schema.prisma"), "type": "database", "shape": "database", "group_id": "group_data", "group_label": "Persistence & Storage", "suffix": "Store"},
+            "ai": {"keywords": ("ai", "llm", "rag", "vector", "embedding", "agent", "inference", "genai", "gemini", "groq", "prompt"), "type": "service", "shape": "box", "group_id": "group_ai", "group_label": "AI & Intelligence Engine", "suffix": "Engine"},
+            "auth": {"keywords": ("auth", "login", "session", "jwt", "token", "password", "signup", "register"), "type": "authentication", "shape": "box", "group_id": "group_http", "group_label": "HTTP & Routing Layer", "suffix": "Guard"},
+            "queue": {"keywords": ("queue", "worker", "job", "event", "task", "scheduler", "cron"), "type": "queue", "shape": "queue", "group_id": "group_core", "group_label": "Core Services", "suffix": "Worker"},
+            "util": {"keywords": ("util", "helper", "common", "shared", "parsing", "format", "lib", "tools", "config"), "type": "infrastructure", "shape": "box", "group_id": "group_utils", "group_label": "Utilities & Configuration", "suffix": "Utilities"},
+        }
+
+        clusters: dict[str, dict[str, Any]] = {}
+
+        # Strategy: group by meaningful parent directory or top-level source files
+        for doc in source_docs:
+            p = PurePosixPath(doc.file_path)
+            name = p.name
+            parent = str(p.parent)
+
+            if parent in (".", "lib", "src", "app") and name in entry_patterns:
+                cluster_key = f"entry_{name.split('.')[0]}"
+                cluster_name = f"{name.split('.')[0].replace('_', ' ').replace('-', ' ').title()} Entrypoint"
+            elif parent != ".":
+                parts = p.parts
+                if len(parts) >= 2 and parts[0] in ("lib", "src", "app", "packages", "pkg") and len(parts) >= 3:
+                    cluster_key = f"{parts[0]}_{parts[1]}"
+                    cluster_name = f"{parts[1].replace('_', ' ').replace('-', ' ').title()}"
+                elif len(parts) >= 2 and parts[0] in ("lib", "src", "app", "packages", "pkg"):
+                    stem = p.stem
+                    cluster_key = f"{parts[0]}_{stem}"
+                    cluster_name = f"{stem.replace('_', ' ').replace('-', ' ').title()}"
+                else:
+                    top = parts[0]
+                    cluster_key = f"mod_{top}"
+                    cluster_name = f"{top.replace('_', ' ').replace('-', ' ').title()}"
             else:
-                other_files.append(doc.file_path)
+                stem = p.stem
+                cluster_key = f"mod_{stem}"
+                cluster_name = f"{stem.replace('_', ' ').replace('-', ' ').title()}"
 
-        # 1. Frontend Subsystem
-        if frontend_files:
+            if cluster_key not in clusters:
+                clusters[cluster_key] = {
+                    "name": cluster_name,
+                    "files": [],
+                    "symbols": set(),
+                    "routes": [],
+                    "languages": set(),
+                }
+            clusters[cluster_key]["files"].append(doc.file_path)
+            clusters[cluster_key]["languages"].add(doc.language)
+            if doc.file_path in context.get("file_symbols", {}):
+                clusters[cluster_key]["symbols"].update(context["file_symbols"][doc.file_path])
+
+        # If too few clusters, split large ones or create individual file components
+        if len(clusters) < 4:
+            for doc in source_docs[:14]:
+                p = PurePosixPath(doc.file_path)
+                c_key = f"file_{p.stem.replace('-', '_').replace('.', '_')}"
+                if c_key not in clusters:
+                    clusters[c_key] = {
+                        "name": f"{p.stem.replace('_', ' ').replace('-', ' ').title()}",
+                        "files": [doc.file_path],
+                        "symbols": set(context.get("file_symbols", {}).get(doc.file_path, [])),
+                        "routes": [],
+                        "languages": {doc.language},
+                    }
+
+        # Assign discovered routes to clusters
+        for route_info in context.get("routes", []):
+            route_file = route_info.get("file", "")
+            for c_key, data in clusters.items():
+                if route_file in data["files"]:
+                    data["routes"].append(f"{route_info['method']} {route_info['path']}")
+                    break
+
+        # Build Components from Clusters
+        components: list[ArchitectureComponent] = []
+        file_to_comp_id: dict[str, str] = {}
+
+        # Take up to 14 most meaningful clusters
+        sorted_clusters = sorted(clusters.items(), key=lambda x: len(x[1]["files"]), reverse=True)[:14]
+
+        for c_key, data in sorted_clusters:
+            comp_id = re.sub(r"[^a-z0-9_-]", "_", c_key.lower())
+            for f in data["files"]:
+                file_to_comp_id[f] = comp_id
+
+            # Determine role by matching keywords against file paths and cluster name
+            c_text = f"{data['name']} {' '.join(data['files'])}".lower()
+            matched_role = None
+            for role_name, role_info in ROLE_HINTS.items():
+                if any(kw in c_text for kw in role_info["keywords"]):
+                    matched_role = role_info
+                    break
+
+            if not matched_role:
+                matched_role = {"type": "service", "shape": "box", "group_id": "group_core", "group_label": "Core Services", "suffix": "Service"}
+
+            comp_type = matched_role["type"]
+            comp_shape = matched_role["shape"]
+            group_id = matched_role["group_id"]
+            group_label = matched_role["group_label"]
+
+            # Generate a better component name
+            base_name = data["name"]
+            if not any(w in base_name.lower() for w in ("service", "api", "store", "engine", "guard", "worker", "interface", "utilities", "entrypoint")):
+                base_name = f"{base_name} {matched_role['suffix']}"
+
+            sym_list = list(data["symbols"])[:8]
+            route_list = data.get("routes", [])[:6]
+
+            # Build richer internal flows
+            internal_flows = []
+            if len(sym_list) >= 2:
+                for i in range(min(3, len(sym_list) - 1)):
+                    internal_flows.append(
+                        InternalFlowStep(
+                            from_symbol=sym_list[i],
+                            to_symbol=sym_list[i + 1],
+                            action=f"Invokes {sym_list[i + 1]} for processing",
+                            file_path=data["files"][0] if data["files"] else None,
+                        )
+                    )
+
+            key_files = [PurePosixPath(f).name for f in data["files"][:4]]
+            responsibilities = [
+                f"Manages {len(data['files'])} source files including {', '.join(key_files[:3])}",
+                f"Provides {len(sym_list)} exported symbols: {', '.join(sym_list[:4]) or 'internal modules'}",
+            ]
+            if route_list:
+                responsibilities.append(f"Exposes endpoints: {', '.join(route_list[:3])}")
+            responsibilities.append(f"Implemented in {', '.join(sorted(data['languages']))}")
+
             components.append(
                 ArchitectureComponent(
-                    id="frontend_client",
-                    name="Frontend Web Application",
-                    type="frontend",
-                    description="User interface and interactive workspace rendering React Flow dependency graphs and Q&A chat.",
-                    responsibilities=[
-                        "Render interactive system architecture graph and dependency visualization",
-                        "Manage user authentication session and state",
-                        "Dispatch API queries and display grounded code responses with source citations",
-                    ],
-                    files=frontend_files,
-                    symbols=["App", "ArchitectureGraph", "useSemanticArchitecture", "api"],
-                    internal_flow=[
-                        InternalFlowStep(from_symbol="App.tsx", to_symbol="api.ts", action="Dispatches HTTP requests for architecture and Q&A", file_path=frontend_files[0]),
-                        InternalFlowStep(from_symbol="api.ts", to_symbol="ArchitectureGraph.tsx", action="Passes graph topology to React Flow canvas", file_path=frontend_files[0]),
-                    ],
-                    evidence=ComponentEvidence(files=frontend_files[:6], keywords=["React", "TypeScript", "React Flow", "Vite"]),
+                    id=comp_id,
+                    name=base_name,
+                    type=comp_type,
+                    shape=comp_shape,
+                    group_id=group_id,
+                    group_label=group_label,
+                    description=f"{base_name} handles {data['name'].lower()} functionality across {len(data['files'])} files ({', '.join(key_files[:3])}).",
+                    responsibilities=responsibilities,
+                    files=data["files"][:10],
+                    symbols=sym_list,
+                    routes=route_list,
+                    internal_flow=internal_flows,
+                    evidence=ComponentEvidence(
+                        files=data["files"][:6],
+                        symbols=sym_list[:6],
+                        routes=route_list[:4],
+                        keywords=list(data["languages"]),
+                    ),
                 )
             )
 
-        # 2. API & Routing Subsystem
-        if api_files:
-            components.append(
-                ArchitectureComponent(
-                    id="api_gateway",
-                    name="API Routing & Controllers",
-                    type="api",
-                    description="HTTP entry point handling REST request validation, rate limiting, and delegating to backend services.",
-                    responsibilities=[
-                        "Expose REST endpoints for repository management, analysis, and queries",
-                        "Validate incoming request payloads and authenticate bearer tokens",
-                        "Coordinate between business services and AI analysis pipelines",
+        # Build Subsystem Groups from present components
+        group_id_to_label = {c.group_id: c.group_label for c in components if c.group_id and c.group_label}
+        groups = [
+            ArchitectureGroup(id=g_id, label=g_lbl)
+            for g_id, g_lbl in group_id_to_label.items()
+        ]
+
+        # Build Relationships based on cross-component imports with descriptive labels
+        relationships: list[ArchitectureRelationship] = []
+        seen_edges: set[tuple[str, str]] = set()
+        comp_id_to_name = {c.id: c.name for c in components}
+
+        for source_file, target_files in file_to_imports.items():
+            source_comp = file_to_comp_id.get(source_file)
+            if not source_comp:
+                continue
+            for target_file in target_files:
+                target_comp = file_to_comp_id.get(target_file)
+                if target_comp and target_comp != source_comp:
+                    edge_key = (source_comp, target_comp)
+                    if edge_key not in seen_edges:
+                        seen_edges.add(edge_key)
+                        src_name = comp_id_to_name.get(source_comp, source_comp)
+                        tgt_name = comp_id_to_name.get(target_comp, target_comp)
+                        # Determine relationship type based on target role
+                        tgt_comp_obj = next((c for c in components if c.id == target_comp), None)
+                        if tgt_comp_obj and tgt_comp_obj.type == "database":
+                            rel_type, rel_label = "READS", "Reads/Writes data"
+                        elif tgt_comp_obj and tgt_comp_obj.type == "api":
+                            rel_type, rel_label = "CALLS", "Sends request"
+                        elif tgt_comp_obj and tgt_comp_obj.type == "queue":
+                            rel_type, rel_label = "PUBLISHES", "Enqueues task"
+                        else:
+                            rel_type, rel_label = "CALLS", "Invokes"
+                        
+                        relationships.append(
+                            ArchitectureRelationship(
+                                source=source_comp,
+                                target=target_comp,
+                                type=rel_type,
+                                label=rel_label,
+                                style="solid",
+                                description=f"{src_name} imports from {tgt_name}.",
+                            )
+                        )
+
+        # If sparse relationships, connect entrypoints to first-level components
+        if len(relationships) < 3 and len(components) >= 2:
+            first_comp = components[0]
+            for other_comp in components[1:6]:
+                edge_key = (first_comp.id, other_comp.id)
+                if edge_key not in seen_edges:
+                    seen_edges.add(edge_key)
+                    relationships.append(
+                        ArchitectureRelationship(
+                            source=first_comp.id,
+                            target=other_comp.id,
+                            type="CALLS",
+                            label="Dispatches to",
+                            style="solid",
+                            description=f"{first_comp.name} coordinates with {other_comp.name}.",
+                        )
+                    )
+
+        # Generate Multiple End-to-End Execution Flows
+        flows = []
+
+        # Flow 1: Primary request flow
+        if len(components) >= 3:
+            flows.append(
+                ExecutionFlow(
+                    name="Primary Request Flow",
+                    description="Main operational flow through the system's core components.",
+                    steps=[
+                        ExecutionFlowStep(
+                            component=components[i].id,
+                            action=f"{'Receives incoming request' if i == 0 else 'Processes and forwards' if i < len(components) - 1 else 'Returns final response'} via {components[i].name}",
+                            file=components[i].files[0] if components[i].files else None,
+                            symbol=components[i].symbols[0] if components[i].symbols else None,
+                        )
+                        for i in range(min(5, len(components)))
                     ],
-                    files=api_files,
-                    symbols=["repository.controller", "auth.controller", "app.ts"],
-                    routes=[r["path"] for r in context.get("routes", [])[:5]],
-                    internal_flow=[
-                        InternalFlowStep(from_symbol="routes", to_symbol="controller", action="Delegates HTTP endpoint to controller handler"),
-                        InternalFlowStep(from_symbol="controller", to_symbol="service", action="Invokes domain service logic"),
-                    ],
-                    evidence=ComponentEvidence(files=api_files[:6], routes=[r["path"] for r in context.get("routes", [])[:4]], keywords=["Express", "Routing", "Controller"]),
                 )
             )
 
-        # 3. Authentication Subsystem
-        if auth_files:
-            components.append(
-                ArchitectureComponent(
-                    id="auth_subsystem",
-                    name="Authentication & Security",
-                    type="authentication",
-                    description="Manages user credential verification, password hashing, and signed JWT session token generation.",
-                    responsibilities=[
-                        "Verify user passwords with cryptographic hashing (bcrypt/argon2)",
-                        "Issue and refresh signed JSON Web Tokens (JWT)",
-                        "Enforce protected route access control and permission checking",
+        # Flow 2: Data access flow (if we have a database component)
+        db_comps = [c for c in components if c.type == "database"]
+        api_comps = [c for c in components if c.type == "api"]
+        if db_comps and api_comps:
+            flows.append(
+                ExecutionFlow(
+                    name="Data Access Flow",
+                    description=f"Data retrieval path from {api_comps[0].name} through to {db_comps[0].name}.",
+                    steps=[
+                        ExecutionFlowStep(component=api_comps[0].id, action=f"API request handled by {api_comps[0].name}", file=api_comps[0].files[0] if api_comps[0].files else None),
+                        ExecutionFlowStep(component=db_comps[0].id, action=f"Query executed against {db_comps[0].name}", file=db_comps[0].files[0] if db_comps[0].files else None),
+                        ExecutionFlowStep(component=api_comps[0].id, action="Response formatted and returned to client"),
                     ],
-                    files=auth_files,
-                    symbols=["auth.service", "auth.middleware", "jwt"],
-                    internal_flow=[
-                        InternalFlowStep(from_symbol="authController.login", to_symbol="authService.verify", action="Validates user credentials against database"),
-                        InternalFlowStep(from_symbol="authService.verify", to_symbol="jwt.sign", action="Generates signed access token"),
-                    ],
-                    evidence=ComponentEvidence(files=auth_files[:5], keywords=["JWT", "Bcrypt", "Security"]),
                 )
             )
 
-        # 4. Core Business Services
-        if service_files:
-            components.append(
-                ArchitectureComponent(
-                    id="application_services",
-                    name="Application Business Logic",
-                    type="business_logic",
-                    description="Encapsulates core domain rules, repository lifecycle management, and external service orchestration.",
-                    responsibilities=[
-                        "Orchestrate repository cloning and GitHub metadata fetching",
-                        "Coordinate static analysis and document parsing workflows",
-                        "Manage repository indexing state and query caching",
+        # Flow 3: AI/Intelligence flow (if we have AI components)
+        ai_comps = [c for c in components if c.group_id == "group_ai"]
+        if ai_comps and len(components) >= 2:
+            entry_comp = api_comps[0] if api_comps else components[0]
+            flows.append(
+                ExecutionFlow(
+                    name="AI Intelligence Pipeline",
+                    description=f"AI-powered processing through {ai_comps[0].name}.",
+                    steps=[
+                        ExecutionFlowStep(component=entry_comp.id, action=f"Request arrives at {entry_comp.name}"),
+                        ExecutionFlowStep(component=ai_comps[0].id, action=f"AI processing by {ai_comps[0].name}", file=ai_comps[0].files[0] if ai_comps[0].files else None),
+                        ExecutionFlowStep(component=entry_comp.id, action="AI results returned to caller"),
                     ],
-                    files=service_files,
-                    symbols=["repository.service", "github.service", "ai.service"],
-                    internal_flow=[
-                        InternalFlowStep(from_symbol="repositoryService", to_symbol="githubService", action="Fetches remote repository file tree and content"),
-                        InternalFlowStep(from_symbol="repositoryService", to_symbol="aiService", action="Dispatches files for indexing and architecture extraction"),
-                    ],
-                    evidence=ComponentEvidence(files=service_files[:6], keywords=["Business Logic", "Domain Services"]),
                 )
             )
 
-        # 5. AI & Vector Intelligence Service
-        if ai_files:
-            components.append(
-                ArchitectureComponent(
-                    id="ai_intelligence_service",
-                    name="AI & Code RAG Engine",
-                    type="service",
-                    description="Python FastAPI service performing AST-aware chunking, vector embedding, Qdrant semantic search, and LLM reasoning.",
-                    responsibilities=[
-                        "Synthesize multi-level code-grounded system architectures via static inspection",
-                        "Generate dense vector embeddings using SentenceTransformers",
-                        "Execute hybrid vector search with dependency graph expansion for grounded Q&A",
-                    ],
-                    files=ai_files,
-                    symbols=["ArchitectureAgent", "RetrievalService", "VectorService", "LLMService"],
-                    internal_flow=[
-                        InternalFlowStep(from_symbol="RetrievalService.retrieve", to_symbol="VectorService.search_similar", action="Queries Qdrant for semantic code chunks"),
-                        InternalFlowStep(from_symbol="RetrievalService", to_symbol="LLMService.generate_text", action="Synthesizes grounded code explanation from retrieved context"),
-                    ],
-                    evidence=ComponentEvidence(files=ai_files[:6], keywords=["FastAPI", "Qdrant", "SentenceTransformers", "LLM"]),
-                )
-            )
-
-        # 6. Data Access & Storage Subsystem
-        if db_files or context.get("models"):
-            components.append(
-                ArchitectureComponent(
-                    id="data_storage_layer",
-                    name="Data Access & Persistence",
-                    type="data_access",
-                    description="Relational persistence layer storing users, repository metadata, source file records, and indexing status.",
-                    responsibilities=[
-                        "Manage Prisma schema definitions and database migrations",
-                        "Persist repository metadata, memberships, and file indexing states",
-                        "Execute transactional data queries and schema-enforced updates",
-                    ],
-                    files=db_files,
-                    symbols=[m["model"] for m in context.get("models", [])[:6]] or ["prisma", "schema"],
-                    internal_flow=[
-                        InternalFlowStep(from_symbol="PrismaClient", to_symbol="PostgreSQL", action="Executes indexed SQL queries and relation joins"),
-                    ],
-                    evidence=ComponentEvidence(files=db_files[:5], keywords=["Prisma", "PostgreSQL", "Relational Database"]),
-                )
-            )
-
-        # Relationships
-        if frontend_files and api_files:
-            relationships.append(
-                ArchitectureRelationship(
-                    source="frontend_client",
-                    target="api_gateway",
-                    type="HTTP_REQUEST",
-                    label="REST API",
-                    description="Frontend initiates HTTP requests to trigger analysis and query the codebase.",
-                )
-            )
-        if api_files and auth_files:
-            relationships.append(
-                ArchitectureRelationship(
-                    source="api_gateway",
-                    target="auth_subsystem",
-                    type="AUTHENTICATES",
-                    label="Verify Token",
-                    description="API gateway routes validate JWT bearer credentials via auth middleware.",
-                )
-            )
-        if api_files and service_files:
-            relationships.append(
-                ArchitectureRelationship(
-                    source="api_gateway",
-                    target="application_services",
-                    type="CALLS",
-                    label="Execute Logic",
-                    description="Controllers invoke application services to fulfill client operations.",
-                )
-            )
-        if service_files and ai_files:
-            relationships.append(
-                ArchitectureRelationship(
-                    source="application_services",
-                    target="ai_intelligence_service",
-                    type="CALLS",
-                    label="AI Pipeline",
-                    description="Backend communicates with the Python AI service for architecture discovery and RAG queries.",
-                )
-            )
-        if (service_files or api_files) and (db_files or context.get("models")):
-            relationships.append(
-                ArchitectureRelationship(
-                    source="application_services" if service_files else "api_gateway",
-                    target="data_storage_layer",
-                    type="QUERIES",
-                    label="Prisma ORM",
-                    description="Services persist repository models, files, and users to the database.",
-                )
-            )
-
-        # End-to-end Execution Flows
-        flows.append(
-            ExecutionFlow(
-                name="Repository Architecture Analysis Flow",
-                description="End-to-end pipeline from client request to AST static analysis, architecture discovery, and graph rendering.",
-                steps=[
-                    ExecutionFlowStep(component="frontend_client", action="User triggers 'Build architecture'", symbol="api.architecture"),
-                    ExecutionFlowStep(component="api_gateway", action="API endpoint receives POST /repositories/:id/architecture", symbol="analyzeArchitecture"),
-                    ExecutionFlowStep(component="application_services", action="Loads source files from database/GitHub", symbol="getRepositoryFilesForAi"),
-                    ExecutionFlowStep(component="ai_intelligence_service", action="Extracts static routes, models, symbols, and call chains", symbol="ArchitectureAgent.discover_architecture"),
-                    ExecutionFlowStep(component="frontend_client", action="Renders multi-level hierarchical architecture graph on canvas", symbol="ArchitectureGraph"),
-                ],
-            )
-        )
-
-        flows.append(
-            ExecutionFlow(
-                name="Code Q&A RAG Query Flow",
-                description="Execution path for user technical questions using hybrid semantic retrieval and grounded LLM reasoning.",
-                steps=[
-                    ExecutionFlowStep(component="frontend_client", action="User submits natural language question", symbol="api.askQuestion"),
-                    ExecutionFlowStep(component="api_gateway", action="Routes query to AI service with repository filter", symbol="queryRepository"),
-                    ExecutionFlowStep(component="ai_intelligence_service", action="Generates embedding and performs hybrid Qdrant vector search", symbol="RetrievalService.retrieve"),
-                    ExecutionFlowStep(component="ai_intelligence_service", action="Expands context via dependency graph and constructs grounded prompt", symbol="RetrievalService"),
-                    ExecutionFlowStep(component="ai_intelligence_service", action="LLM generates code-grounded explanation citing exact files and lines", symbol="LLMService.generate_text"),
-                    ExecutionFlowStep(component="frontend_client", action="Renders answer with clickable source citations", symbol="RepositoryPanel"),
-                ],
-            )
-        )
-
-        flows.append(
-            ExecutionFlow(
-                name="User Authentication & Session Flow",
-                description="Secure login flow validating credentials and producing signed JWT tokens.",
-                steps=[
-                    ExecutionFlowStep(component="frontend_client", action="Submits email and password in AuthScreen", symbol="api.signIn"),
-                    ExecutionFlowStep(component="api_gateway", action="Receives POST /auth/login request", symbol="loginHandler"),
-                    ExecutionFlowStep(component="auth_subsystem", action="Validates password hash and creates JWT access token", symbol="authService.login"),
-                    ExecutionFlowStep(component="data_storage_layer", action="Retrieves user record from database", symbol="prisma.user.findUnique"),
-                    ExecutionFlowStep(component="frontend_client", action="Stores session token and transitions to repository workbench", symbol="setSession"),
-                ],
-            )
-        )
-
+        repo_name = repository_id.split("/")[-1].replace("_", " ").title()
+        tech_str = ", ".join(context.get("detected_technologies", [])[:5]) or "standard technologies"
         return SemanticArchitecture(
-            title="RepoWise System Architecture",
-            summary="Multi-service architecture orchestrating TypeScript backend services, Python AI intelligence (Qdrant RAG + LLM), and React Flow interactive visualization.",
-            architecture_style="Multi-Service / Client-Server",
+            title=f"{repo_name} System Architecture",
+            summary=f"{repo_name} is built with {tech_str}. It consists of {len(components)} subsystems organized across {len(groups)} architectural layers, processing requests through {len(relationships)} interconnected data paths.",
+            architecture_style="Modular Multi-Layer Architecture",
             entry_points=context.get("entry_points", []),
+            groups=groups,
             components=components,
             relationships=relationships,
             flows=flows,
         )
+

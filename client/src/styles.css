@@ -1943,3 +1943,238 @@ header {
     gap: 0.35rem;
   }
 }
+
+/* ==========================================================================
+   GitDiagram-Grade System Architecture Diagram & Toolbar
+   ========================================================================== */
+
+.gitdiagram-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 520px;
+  width: 100%;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+
+.gitdiagram-container.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  border-radius: 0;
+  border: none;
+  height: 100vh;
+  width: 100vw;
+}
+
+.gitdiagram-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.85rem;
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  z-index: 10;
+}
+
+.gitdiagram-view-toggle {
+  display: flex;
+  align-items: center;
+  background: var(--sand-tint);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.gitdiagram-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: none;
+  color: var(--ink-muted);
+  padding: 0.35rem 0.65rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.gitdiagram-btn:hover {
+  color: var(--ink-dark);
+}
+
+.gitdiagram-btn.active {
+  background: var(--surface);
+  color: var(--terracotta);
+  box-shadow: var(--shadow-sm);
+}
+
+.gitdiagram-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.gitdiagram-zoom-group {
+  display: flex;
+  align-items: center;
+  background: var(--sand-tint);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.gitdiagram-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: none;
+  color: var(--ink-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.gitdiagram-icon-btn:hover {
+  background: var(--surface-card);
+  color: var(--ink-dark);
+}
+
+.gitdiagram-zoom-badge {
+  background: transparent;
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  padding: 0 0.35rem;
+  cursor: pointer;
+}
+
+.gitdiagram-zoom-badge:hover {
+  color: var(--ink-dark);
+}
+
+.gitdiagram-viewport {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 460px;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.gitdiagram-viewport:active {
+  cursor: grabbing;
+}
+
+.gitdiagram-svg-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+}
+
+.gitdiagram-svg-stage svg {
+  transition: filter 0.2s ease;
+}
+
+.gitdiagram-svg-stage .node {
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.gitdiagram-svg-stage .node:hover {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.18));
+}
+
+.gitdiagram-svg-stage .node.selected-mermaid-node rect,
+.gitdiagram-svg-stage .node.selected-mermaid-node circle,
+.gitdiagram-svg-stage .node.selected-mermaid-node polygon,
+.gitdiagram-svg-stage .node.selected-mermaid-node path {
+  stroke: var(--terracotta) !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 8px rgba(197, 106, 60, 0.45));
+}
+
+.gitdiagram-hint-pill {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--ink-subtle);
+  pointer-events: none;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+}
+
+.gitdiagram-code-view {
+  flex: 1;
+  padding: 1.25rem;
+  overflow: auto;
+  background: var(--surface);
+}
+
+.gitdiagram-code-block {
+  margin: 0;
+  padding: 1.25rem;
+  background: var(--sand-tint);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--ink-dark);
+  overflow-x: auto;
+}
+
+.gitdiagram-error-box {
+  background: var(--surface-card);
+  border: 1px solid #ef4444;
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  max-width: 500px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+
+.gitdiagram-error-title {
+  font-weight: 700;
+  color: #ef4444;
+  margin-bottom: 0.5rem;
+}
+
+.gitdiagram-error-desc {
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  margin-bottom: 1rem;
+}
+

@@ -53,10 +53,20 @@ export interface ComponentEvidence {
   keywords?: string[];
 }
 
+export interface ArchitectureGroup {
+  id: string;
+  label: string;
+  description?: string;
+}
+
 export interface ArchitectureComponent {
   id: string;
   name: string;
   type: string;
+  shape?: "box" | "database" | "circle" | "queue" | "hexagon" | "document";
+  group_id?: string;
+  groupId?: string;
+  group_label?: string;
   description: string;
   responsibilities?: string[];
   files?: string[];
@@ -71,6 +81,7 @@ export interface ArchitectureRelationship {
   target: string;
   type: string;
   label: string;
+  style?: "solid" | "dashed";
   description?: string | null;
 }
 
@@ -79,10 +90,13 @@ export interface SemanticArchitecture {
   summary: string;
   architecture_style?: string;
   entry_points?: string[];
+  groups?: ArchitectureGroup[];
   components: ArchitectureComponent[];
   relationships: ArchitectureRelationship[];
   flows?: ExecutionFlow[];
+  mermaid_code?: string;
 }
+
 
 export interface Architecture {
   repository_id: string;

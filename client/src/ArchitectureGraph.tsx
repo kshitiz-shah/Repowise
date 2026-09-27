@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -17,6 +17,8 @@ import { ContainsEdge } from "./components/architecture/ContainsEdge";
 import { ImportEdge } from "./components/architecture/ImportEdge";
 import { SemanticEdge } from "./components/architecture/SemanticEdge";
 import { ComponentDetailDrawer } from "./components/architecture/ComponentDetailDrawer";
+import { MermaidDiagram } from "./components/architecture/MermaidDiagram";
+import { compileClientMermaidArchitecture } from "./services/mermaidCompiler";
 
 // Custom Node and Edge Types Map
 const fileNodeTypes = {
@@ -42,9 +44,11 @@ interface ArchitectureGraphProps {
 }
 
 type ExplorerTab = "system" | "flows" | "dependencies";
+type SystemLayoutMode = "gitdiagram" | "nodes";
 
 export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
   const [activeTab, setActiveTab] = useState<ExplorerTab>("system");
+  const [systemLayoutMode, setSystemLayoutMode] = useState<SystemLayoutMode>("gitdiagram");
   const [selectedFlowIndex, setSelectedFlowIndex] = useState<number>(0);
 
   // Hook 1: Semantic System Architecture (High-level Subsystems)
@@ -52,6 +56,8 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
     flowNodes: semanticNodes,
     flowEdges: semanticEdges,
     selectedComponent,
+    selectedComponentId,
+    selectComponent,
     clearSelection: clearSemanticSelection,
   } = useSemanticArchitecture(graph.architecture);
 
@@ -69,8 +75,17 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
     graph.architecture.components.length > 0
   );
 
+  const compiledMermaidChart = useMemo(() => {
+    if (!graph.architecture) return "";
+    if (graph.architecture.mermaid_code && graph.architecture.mermaid_code.trim()) {
+      return graph.architecture.mermaid_code;
+    }
+    return compileClientMermaidArchitecture(graph.architecture);
+  }, [graph.architecture]);
+
   const flows: ExecutionFlow[] = graph.architecture?.flows || [];
   const statistics = graph.statistics;
+
 
   return (
     <div className="arch-explorer-container">
@@ -206,8 +221,28 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
           {/* Executive Architecture Summary Banner */}
           {graph.architecture && (
             <div className="arch-summary-banner">
-              <div className="arch-summary-badge">
-                {graph.architecture.architecture_style || "ARCHITECTURAL OVERVIEW"}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: "0.5rem" }}>
+                <div className="arch-summary-badge">
+                  {graph.architecture.architecture_style || "SYSTEM DESIGN & ARCHITECTURE"}
+                </div>
+                <div className="gitdiagram-view-toggle">
+                  <button
+                    type="button"
+                    className={`gitdiagram-btn ${systemLayoutMode === "gitdiagram" ? "active" : ""}`}
+                    onClick={() => setSystemLayoutMode("gitdiagram")}
+                    title="GitDiagram Interactive Architecture"
+                  >
+                    🎨 GitDiagram View
+                  </button>
+                  <button
+                    type="button"
+                    className={`gitdiagram-btn ${systemLayoutMode === "nodes" ? "active" : ""}`}
+                    onClick={() => setSystemLayoutMode("nodes")}
+                    title="Component Flow Cards"
+                  >
+                    🗂️ Card Flow
+                  </button>
+                </div>
               </div>
               <h3 className="arch-summary-title">{graph.architecture.title}</h3>
               <p className="arch-summary-text">{graph.architecture.summary}</p>
@@ -215,28 +250,37 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
           )}
 
           <div className="arch-stage-wrapper">
-            <div className="arch-canvas-wrapper main-canvas">
+            <div className="arch-canvas-wrapper main-canvas" style={{ padding: systemLayoutMode === "gitdiagram" ? 0 : undefined, overflow: "hidden" }}>
               {hasSemanticArchitecture ? (
-                <ReactFlow
-                  nodes={semanticNodes}
-                  edges={semanticEdges}
-                  nodeTypes={semanticNodeTypes}
-                  edgeTypes={semanticEdgeTypes}
-                  fitView
-                  fitViewOptions={{ padding: 0.25 }}
-                  minZoom={0.2}
-                  maxZoom={2.0}
-                  onPaneClick={clearSemanticSelection}
-                  proOptions={{ hideAttribution: true }}
-                >
-                  <Background
-                    color="var(--canvas-dots, #D5CABE)"
-                    gap={24}
-                    size={1.5}
-                    variant={BackgroundVariant.Dots}
+                systemLayoutMode === "gitdiagram" ? (
+                  <MermaidDiagram
+                    chart={compiledMermaidChart}
+                    components={graph.architecture?.components || []}
+                    selectedComponentId={selectedComponentId}
+                    onSelectComponent={(id) => selectComponent(id)}
                   />
-                  <Controls showInteractive={false} className="arch-controls" />
-                </ReactFlow>
+                ) : (
+                  <ReactFlow
+                    nodes={semanticNodes}
+                    edges={semanticEdges}
+                    nodeTypes={semanticNodeTypes}
+                    edgeTypes={semanticEdgeTypes}
+                    fitView
+                    fitViewOptions={{ padding: 0.25 }}
+                    minZoom={0.2}
+                    maxZoom={2.0}
+                    onPaneClick={clearSemanticSelection}
+                    proOptions={{ hideAttribution: true }}
+                  >
+                    <Background
+                      color="var(--canvas-dots, #D5CABE)"
+                      gap={24}
+                      size={1.5}
+                      variant={BackgroundVariant.Dots}
+                    />
+                    <Controls showInteractive={false} className="arch-controls" />
+                  </ReactFlow>
+                )
               ) : (
                 <p className="empty">Generating architecture overview...</p>
               )}
@@ -254,6 +298,7 @@ export default function ArchitectureGraph({ graph }: ArchitectureGraphProps) {
           </div>
         </div>
       )}
+
 
       {/* =========================================================================
           VIEW 2: RUNTIME EXECUTION FLOWS (Level 3 Deep Flow Explorer)

@@ -18,8 +18,9 @@ class GeminiProvider(LLMProvider):
     def generate_text(self, prompt: str) -> str:
         from google import genai
         from google.genai import errors as genai_errors
+        from google.genai import types
 
-        client = genai.Client(api_key=self._api_key)
+        client = genai.Client(api_key=self._api_key, http_options=types.HttpOptions(timeout=15000))
         last_error: Exception | None = None
 
         for attempt in range(1, _MAX_RETRIES + 1):

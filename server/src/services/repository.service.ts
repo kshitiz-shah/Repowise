@@ -14,8 +14,25 @@ const repositorySelect = {
 
 export const createRepository = async (userId: string, githubUrl: string) => {
   const reference = parseRepositoryUrl(githubUrl);
-  const existing = await prisma.repository.findUnique({ where: { githubUrl: reference.canonicalUrl } });
-  if (existing) throw new ApiError(409, "This GitHub repository has already been added", "REPOSITORY_ALREADY_EXISTS");
+  const existing = await prisma.repository.findUnique({
+    where: { githubUrl: reference.canonicalUrl },
+    include: { memberships: { where: { userId } } },
+  });
+  if (existing) {
+    if (existing.memberships.length === 0 && existing.ownerId !== userId) {
+      await prisma.repositoryMembership.create({
+        data: {
+          repositoryId: existing.id,
+          userId,
+          role: RepositoryRole.COLLABORATOR,
+        },
+      });
+    }
+    return prisma.repository.findUniqueOrThrow({
+      where: { id: existing.id },
+      select: repositorySelect,
+    });
+  }
 
   const metadata = await getRepositoryMetadata(reference.canonicalUrl);
   return prisma.repository.create({
@@ -28,6 +45,7 @@ export const createRepository = async (userId: string, githubUrl: string) => {
     select: repositorySelect,
   });
 };
+
 
 export const listRepositories = (userId: string) => prisma.repository.findMany({
   where: { OR: [{ ownerId: userId }, { memberships: { some: { userId } } }] },
