@@ -1,0 +1,233 @@
+================================================================================
+REPOWISE - VIDEO PRESENTATION SCRIPT (4-5 MINUTES)
+================================================================================
+Target Duration : 4:30 - 5:00 minutes
+Target Word Count: ~650 - 720 words (pace: ~135-145 wpm)
+Theme / Mode    : Dark Mode (Recommended for high-contrast diagrams & code)
+Recording Format: Screen share + optional webcam overlay (bottom-right)
+
+--------------------------------------------------------------------------------
+PRE-RECORDING CHECKLIST:
+--------------------------------------------------------------------------------
+[ ] Start containers: docker compose up -d (Postgres on 5432, Qdrant on 6333)
+[ ] Start backend: cd server && npm run dev (port 3000)
+[ ] Start AI service: cd ai-service && python run.py (port 8000)
+[ ] Start frontend: cd client && npm run dev (port 5173)
+[ ] Pre-add a repository (e.g., Repowise itself or an active repo)
+[ ] Pre-run "Index for Q&A" and "Generate Architecture" so responses are instant
+[ ] Have a sample bug issue ready in your clipboard for quick copy-pasting
+
+================================================================================
+ACT 1: THE HOOK & THE DEVELOPER PAIN POINT [0:00 - 0:40]
+================================================================================
+
+[0:00 - 0:15]
+VISUAL:
+  Talking head / webcam full screen OR screen showing a massive GitHub repo
+  with hundreds of directories, complex dependencies, and dozens of issues.
+
+AUDIO / VOICEOVER:
+  "Have you ever joined a new team, opened up a massive codebase with fifty
+  thousand lines of code, and had no clue where anything lives?
+
+  Or worse—you are handed an ambiguous bug report, and you spend half your day
+  just trying to figure out which file is actually causing the break?"
+
+[0:15 - 0:40]
+VISUAL:
+  Switch to screen capture of the RepoWise Dashboard (Dark Theme).
+  Smoothly pan across the clean, editorial UI.
+
+AUDIO / VOICEOVER:
+  "Traditional code search is slow, documentation is almost always outdated,
+  and generic AI chatbots hallucinate functions that do not even exist.
+
+  That is why we built RepoWise—an autonomous repository intelligence platform.
+  RepoWise maps architectures automatically, localizes bugs directly to the
+  culprit source code, automates issue triage, and identifies technical debt
+  before it breaks production."
+
+
+================================================================================
+ACT 2: SYSTEM ARCHITECTURE & GITDIAGRAM EXPLORER [0:40 - 1:20]
+================================================================================
+
+[0:40 - 0:55]
+VISUAL:
+  On the RepoWise dashboard:
+  Show the input field with a public GitHub repo URL.
+  Click "Generate Architecture" (or show the loaded graph).
+
+AUDIO / VOICEOVER:
+  "Let's see it in action. All you need is a public GitHub repository URL.
+  RepoWise inspects the repository using static Abstract Syntax Tree parsing
+  to understand the structure without ever needing to execute unfamiliar code."
+
+[0:55 - 1:20]
+VISUAL:
+  Navigate into the "🗺️ System Architecture" tab.
+  Demonstrate smooth cursor pan and zoom across the Mermaid diagram.
+  Click on a controller node or database model to open the slide-out detail drawer.
+
+AUDIO / VOICEOVER:
+  "Immediately, you get a bird's-eye view of your entire system. RepoWise
+  automatically categorizes controllers, API routes, database models, and
+  background queues into an interactive, zoomable GitDiagram.
+
+  You can click any node to inspect file dependencies, imports, and execution
+  flows. What normally takes hours of tedious file-tree clicking now happens
+  in thirty seconds."
+
+
+================================================================================
+ACT 3: GROUNDED CODE Q&A ASSISTANT (RAG ENGINE) [1:20 - 2:05]
+================================================================================
+
+[1:20 - 1:35]
+VISUAL:
+  Click on the "💬 Code Q&A Assistant" tab.
+  Type a clear, architectural question:
+  "How does user authentication and JWT session validation work in this app?"
+  Press Send.
+
+AUDIO / VOICEOVER:
+  "Next up: talking to your codebase without the hallucinations. We built a
+  retrieval-augmented generation engine powered by dense vector embeddings in
+  Qdrant and ultra-fast LLM inference."
+
+[1:35 - 2:05]
+VISUAL:
+  Highlight the returned response:
+  Zoom into the source file badges, exact line ranges (e.g., 'Lines 45-78'),
+  relevance percentage, and syntax-highlighted code evidence.
+
+AUDIO / VOICEOVER:
+  "Notice how RepoWise does not just output a generic summary. Every single
+  claim is strictly grounded. It gives you the verified file path, exact line
+  numbers, relevance scores, and syntax-highlighted code evidence straight
+  from the repo.
+
+  Whether you are onboarding or conducting a security review, you get verified
+  answers you can trust."
+
+
+================================================================================
+ACT 4: MULTI-SIGNAL BUG -> FILE MAPPING [2:05 - 3:00]
+================================================================================
+
+[2:05 - 2:25]
+VISUAL:
+  Switch to the "🐛 Bug → File Mapping" tab.
+  Paste in an issue title and error trace:
+  Title: "Null pointer exception on user profile refresh"
+  Description: "Cannot read properties of undefined in user profile controller
+  when refresh token is expired or revoked."
+
+AUDIO / VOICEOVER:
+  "Now for the star feature: Multi-Signal Bug Localization.
+
+  Imagine an issue lands on your board with a cryptic error stack trace.
+  Instead of grepping across dozens of files, you paste the issue title and
+  description directly into RepoWise."
+
+[2:25 - 3:00]
+VISUAL:
+  Click "Locate Bug".
+  When results appear, show the ranked list of candidate files, confidence badges
+  ('HIGH'), culprit line ranges, and the LLM debugging hypothesis.
+
+AUDIO / VOICEOVER:
+  "RepoWise runs a multi-signal ranking algorithm combining four distinct signals:
+  dense semantic similarity, lexical token matching, dependency graph expansion
+  across imports, and recency-weighted Git commit churn.
+
+  Look at the result: it accurately pinpoints the culprit file, highlights the
+  exact lines, explains the failure hypothesis, and suggests the fix.
+
+  That turns a two-hour debugging wild goose chase into a two-minute resolution."
+
+
+================================================================================
+ACT 5: BUG TRIAGE BOARD & ARCHITECTURAL HOTSPOT DETECTOR [3:00 - 3:50]
+================================================================================
+
+[3:00 - 3:25]
+VISUAL:
+  Click on the "📋 Bug Triage Board" tab.
+  Show fetched live GitHub issues grouped into semantic duplicate clusters.
+  Hover over priority and urgency tags, then point out the "Map Bug to File" button.
+
+AUDIO / VOICEOVER:
+  "RepoWise also supercharges repository maintenance. Our Bug Triage Board
+  syncs live GitHub issues and clusters semantic duplicates so maintainers
+  never have to triage the same bug twice.
+
+  It automatically assigns priority, severity, and domain tags. And with a
+  single click on 'Map Bug to File', it transfers any issue directly into the
+  localization engine."
+
+[3:25 - 3:50]
+VISUAL:
+  Switch to the "🔥 Hotspot Detector" tab.
+  Scroll through the risk ranking table (CRITICAL / HIGH / MEDIUM).
+  Highlight metrics: Churn, LOC, Coupling, and actionable refactoring advice.
+
+AUDIO / VOICEOVER:
+  "Ever wonder where technical debt is silently accumulating?
+
+  The Hotspot Detector computes a composite risk formula evaluating commit churn,
+  cyclomatic complexity, import coupling centrality, and historical bug frequency.
+  It pinpoints fragile bottlenecks before they cause outages, giving engineering
+  leads clear, data-driven refactoring recommendations."
+
+
+================================================================================
+ACT 6: CODE-GROUNDED AUTO README & TECH ARCHITECTURE [3:50 - 4:25]
+================================================================================
+
+[3:50 - 4:10]
+VISUAL:
+  Switch to the "📝 Auto README" tab.
+  Click "Generate README". Show the rendered markdown preview with tech badges,
+  setup guides, API specs, and the "Copy Markdown" / "Download" buttons.
+
+AUDIO / VOICEOVER:
+  "Finally, RepoWise ensures documentation never goes stale. The Auto README
+  generator inspects project manifests—like package.json, Cargo.toml, or
+  requirements.txt—alongside core source files to generate a production-grade
+  README with full setup instructions and API specifications in seconds."
+
+[4:10 - 4:25]
+VISUAL:
+  Show a quick slide or the architecture diagram from the RepoWise repository
+  (Client -> Express Gateway -> FastAPI Service -> Qdrant / Postgres / Groq).
+
+AUDIO / VOICEOVER:
+  "Under the hood, RepoWise is engineered for performance: React 19 on the frontend,
+  a secure Node.js and Prisma API gateway, a Python FastAPI microservice for AI
+  intelligence, PostgreSQL, Qdrant for multi-tenant vector storage, and Groq with
+  Gemini fallback for lightning-fast inference."
+
+
+================================================================================
+ACT 7: CONCLUSION & CALL TO ACTION [4:25 - 4:50]
+================================================================================
+
+[4:25 - 4:50]
+VISUAL:
+  Switch back to camera on speaker, with the RepoWise GitHub repo visible
+  in the background.
+
+AUDIO / VOICEOVER:
+  "RepoWise is designed to make understanding, debugging, and maintaining large
+  codebases effortless for developers and teams everywhere.
+
+  The project is completely open source. Check out the link in the description,
+  spin it up with Docker Compose, and give your repository the intelligence it
+  deserves.
+
+  Thanks for watching, and happy coding!"
+
+================================================================================
+END OF SCRIPT
+================================================================================

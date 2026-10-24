@@ -14,8 +14,13 @@ const repositorySelect = {
 
 export const createRepository = async (userId: string, githubUrl: string) => {
   const reference = parseRepositoryUrl(githubUrl);
-  const existing = await prisma.repository.findUnique({
-    where: { githubUrl: reference.canonicalUrl },
+  const existing = await prisma.repository.findFirst({
+    where: {
+      githubUrl: {
+        equals: reference.canonicalUrl,
+        mode: "insensitive",
+      },
+    },
     include: { memberships: { where: { userId } } },
   });
   if (existing) {
@@ -35,15 +40,36 @@ export const createRepository = async (userId: string, githubUrl: string) => {
   }
 
   const metadata = await getRepositoryMetadata(reference.canonicalUrl);
-  return prisma.repository.create({
-    data: {
-      name: metadata.name, githubOwner: metadata.owner, githubUrl: metadata.canonicalUrl,
-      description: metadata.description, defaultBranch: metadata.defaultBranch, primaryLanguage: metadata.primaryLanguage,
-      ownerId: userId,
-      memberships: { create: { userId, role: RepositoryRole.OWNER } },
-    },
-    select: repositorySelect,
-  });
+  try {
+    return await prisma.repository.create({
+      data: {
+        name: metadata.name,
+        githubOwner: metadata.owner,
+        githubUrl: metadata.canonicalUrl,
+        description: metadata.description,
+        defaultBranch: metadata.defaultBranch,
+        primaryLanguage: metadata.primaryLanguage,
+        ownerId: userId,
+        memberships: { create: { userId, role: RepositoryRole.OWNER } },
+      },
+      select: repositorySelect,
+    });
+  } catch (error: any) {
+    // If a concurrent insert occurred, gracefully return the existing record
+    if (error?.code === "P2002") {
+      const fallback = await prisma.repository.findFirst({
+        where: {
+          githubUrl: {
+            equals: metadata.canonicalUrl,
+            mode: "insensitive",
+          },
+        },
+        select: repositorySelect,
+      });
+      if (fallback) return fallback;
+    }
+    throw error;
+  }
 };
 
 
@@ -80,14 +106,31 @@ export const deleteRepository = async (userId: string, repositoryId: string) => 
 export const getRepositoryFilesForAi = async (userId: string, repositoryId: string): Promise<AiRepositoryFile[]> => {
   const repository = await getRepository(userId, repositoryId);
   const sourceFiles = await getRepositorySourceFiles({ owner: repository.githubOwner, name: repository.name, defaultBranch: repository.defaultBranch });
-  return Promise.all(sourceFiles.map(async (source) => {
-    const extension = path.posix.extname(source.path).toLowerCase() || null;
-    const file = await prisma.file.upsert({
-      where: { repositoryId_path: { repositoryId, path: source.path } },
-      create: { repositoryId, path: source.path, name: path.posix.basename(source.path), extension, size: source.size, linesOfCode: source.content.split("\n").length },
-      update: { extension, size: source.size, linesOfCode: source.content.split("\n").length },
-      select: { id: true, path: true },
-    });
-    return { file_id: file.id, path: file.path, content: source.content };
-  }));
+
+  const results: AiRepositoryFile[] = [];
+  const batchSize = 10;
+  for (let i = 0; i < sourceFiles.length; i += batchSize) {
+    const batch = sourceFiles.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (source) => {
+        const extension = path.posix.extname(source.path).toLowerCase() || null;
+        const file = await prisma.file.upsert({
+          where: { repositoryId_path: { repositoryId, path: source.path } },
+          create: {
+            repositoryId,
+            path: source.path,
+            name: path.posix.basename(source.path),
+            extension,
+            size: source.size,
+            linesOfCode: source.content.split("\n").length,
+          },
+          update: { extension, size: source.size, linesOfCode: source.content.split("\n").length },
+          select: { id: true, path: true },
+        });
+        return { file_id: file.id, path: file.path, content: source.content };
+      })
+    );
+    results.push(...batchResults);
+  }
+  return results;
 };

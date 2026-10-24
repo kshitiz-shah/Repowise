@@ -14,8 +14,32 @@ const logger = pino({ level: env.NODE_ENV === "production" ? "info" : "debug", r
 export const app = express();
 app.disable("x-powered-by");
 app.use(pinoHttp({ logger }));
-app.use(helmet());
-app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "unsafe-none" },
+  })
+);
+
+const allowedOrigins = new Set([
+  env.CORS_ORIGIN,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+]);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: "100kb" }));
 app.use("/api", apiRateLimit, apiRouter);
 app.use(notFoundHandler);

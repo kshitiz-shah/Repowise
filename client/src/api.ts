@@ -1,6 +1,6 @@
 export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
 
-export interface ApiError { code: string; message: string }
+export interface ApiError { code: string; message: string; details?: unknown }
 interface Envelope<T> { success: boolean; data?: T; error?: ApiError }
 
 export interface User { id: string; name: string; email: string }
@@ -113,8 +113,18 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     ...options,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
   });
-  const body = await response.json().catch(() => null) as Envelope<T> | null;
-  if (!response.ok || !body?.success || body.data === undefined) throw new Error(body?.error?.message ?? "The request failed. Please try again.");
+  const body = (await response.json().catch(() => null)) as Envelope<T> | null;
+  if (!response.ok || !body?.success || body.data === undefined) {
+    let msg = body?.error?.message;
+    const fieldErrors = (body?.error?.details as { fieldErrors?: Record<string, string[]> })?.fieldErrors;
+    if (fieldErrors) {
+      const issues = Object.values(fieldErrors).flat().filter(Boolean);
+      if (issues.length > 0) {
+        msg = issues.join(". ");
+      }
+    }
+    throw new Error(msg ?? "The request failed. Please try again.");
+  }
   return body.data;
 }
 

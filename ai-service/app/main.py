@@ -82,9 +82,10 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def unhandled_error_handler(_: Request, error: Exception):
         logger.exception("Unhandled application error", exc_info=error)
+        msg = str(error) if settings.environment != "production" else "Internal server error"
         return JSONResponse(
             status_code=500,
-            content={"success": False, "error": {"code": "INTERNAL_SERVER_ERROR", "message": "Internal server error"}},
+            content={"success": False, "error": {"code": "INTERNAL_SERVER_ERROR", "message": msg or "Internal server error"}},
         )
 
     app.include_router(health.router, prefix="/api")

@@ -284,11 +284,16 @@ function AuthScreen({
           <input
             required
             type="password"
-            minLength={12}
+            minLength={mode === "register" ? 12 : 1}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="12+ characters"
+            placeholder={mode === "register" ? "At least 12 chars (e.g. Password123!)" : "Password"}
           />
+          {mode === "register" && (
+            <span style={{ fontSize: "0.78rem", opacity: 0.8, marginTop: "4px", display: "block" }}>
+              Requires 12+ characters with uppercase, lowercase, number & symbol
+            </span>
+          )}
         </label>
         {notice && <p className="notice">{notice}</p>}
         <button disabled={loading}>
@@ -352,7 +357,7 @@ function AddRepository({
         Public GitHub Repository URL
         <input
           required
-          type="url"
+          type="text"
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           placeholder="https://github.com/owner/repository"

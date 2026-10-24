@@ -66,14 +66,40 @@ const githubHeaders = (accept = "application/vnd.github+json") => ({
 });
 
 export const parseRepositoryUrl = (value: string): GitHubRepositoryReference => {
-  let url: URL;
-  try { url = new URL(value); } catch { throw new ApiError(400, "A valid GitHub repository URL is required", "INVALID_GITHUB_URL"); }
-
-  const parts = url.pathname.replace(/^\/+|\/+$/g, "").replace(/\.git$/, "").split("/");
-  if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "github.com" || parts.length !== 2 || !parts.every(Boolean)) {
-    throw new ApiError(400, "URL must be an HTTPS GitHub repository URL", "INVALID_GITHUB_URL");
+  if (!value || typeof value !== "string") {
+    throw new ApiError(400, "A valid GitHub repository URL is required", "INVALID_GITHUB_URL");
   }
-  const [owner, name] = parts;
+
+  let trimmed = value.trim();
+  // Automatically add https:// if the user omitted the protocol
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    trimmed = `https://${trimmed}`;
+  }
+
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new ApiError(400, "A valid GitHub repository URL is required", "INVALID_GITHUB_URL");
+  }
+
+  const hostname = url.hostname.toLowerCase().replace(/^www\./, "");
+  if (hostname !== "github.com") {
+    throw new ApiError(400, "URL must be a GitHub repository URL (e.g. https://github.com/owner/repo)", "INVALID_GITHUB_URL");
+  }
+
+  const parts = url.pathname
+    .replace(/^\/+|\/+$/g, "")
+    .replace(/\.git$/, "")
+    .split("/")
+    .filter(Boolean);
+
+  if (parts.length < 2) {
+    throw new ApiError(400, "URL must include both the owner and repository name (e.g. https://github.com/owner/repo)", "INVALID_GITHUB_URL");
+  }
+
+  const owner = parts[0];
+  const name = parts[1];
   return { owner, name, canonicalUrl: `https://github.com/${owner}/${name}` };
 };
 
@@ -97,7 +123,12 @@ export const getRepositoryMetadata = async (githubUrl: string): Promise<GitHubRe
     throw new ApiError(502, errorBody?.message ? `GitHub metadata request failed: ${errorBody.message}` : "GitHub metadata request failed", "GITHUB_REQUEST_FAILED");
   }
 
-  const data = await response.json() as { description: string | null; default_branch: string | null; language: string | null };
+  let data: { description: string | null; default_branch: string | null; language: string | null };
+  try {
+    data = (await response.json()) as { description: string | null; default_branch: string | null; language: string | null };
+  } catch {
+    throw new ApiError(502, "GitHub returned invalid metadata JSON", "GITHUB_REQUEST_FAILED");
+  }
   return { ...reference, description: data.description, defaultBranch: data.default_branch, primaryLanguage: data.language };
 };
 

@@ -1,0 +1,43 @@
+Have you ever joined a new team, opened up a massive codebase with fifty thousand lines of code, and had no clue where anything lives? Or worse—you're handed an ambiguous bug report, and you spend half your day just trying to figure out which file is actually causing the break?
+
+Traditional code search is slow, documentation is almost always outdated, and generic AI chatbots hallucinate functions that don't even exist. 
+
+That's why we built RepoWise—an autonomous repository intelligence platform. RepoWise maps architectures automatically, localizes bugs directly to the culprit source code, automates issue triage, and detects technical debt before it breaks production.
+
+Let's see it in action.
+
+All you need is a public GitHub repository link. RepoWise inspects the repository using static Abstract Syntax Tree parsing to understand the structure without ever needing to execute unfamiliar code.
+
+Immediately, you get a bird's-eye view of your entire system. RepoWise automatically categorizes controllers, API routes, database models, and background queues into an interactive, zoomable GitDiagram. You can click on any node to inspect file dependencies, imports, and execution flows. What normally takes hours of tedious file-tree clicking now happens in thirty seconds.
+
+Next up: talking to your codebase without the hallucinations. 
+
+We built a retrieval-augmented generation engine powered by dense vector embeddings in Qdrant and ultra-fast LLM inference. When you ask a question—like "How does user authentication and JWT session validation work in this app?"—notice how RepoWise doesn't just give you a generic summary. Every single claim is strictly grounded. It gives you the verified file path, exact line numbers, relevance scores, and syntax-highlighted code evidence straight from the repo. Whether you're onboarding or conducting a security review, you get verified answers you can trust.
+
+Now for our star feature: Multi-Signal Bug Localization.
+
+Imagine an issue lands on your board with a cryptic error stack trace. Instead of grepping across dozens of files, you paste the issue title and description directly into RepoWise.
+
+RepoWise runs a multi-signal ranking algorithm combining four distinct signals: dense semantic similarity, lexical token matching, dependency graph expansion across imports, and recency-weighted Git commit churn.
+
+Look at the result: it accurately pinpoints the culprit file, highlights the exact lines, explains the failure hypothesis, and suggests the fix. That turns a two-hour debugging wild goose chase into a two-minute resolution.
+
+RepoWise also supercharges repository maintenance. 
+
+Our Bug Triage Board syncs live GitHub issues and clusters semantic duplicates so maintainers never have to answer the same bug twice. It automatically assigns priority, severity, and domain tags. And with a single click on "Map Bug to File", it transfers that issue directly into our localization engine.
+
+At the same time, have you ever wondered where technical debt is silently accumulating?
+
+Our Hotspot Detector computes a composite risk formula evaluating commit churn, cyclomatic complexity, import coupling centrality, and historical bug frequency. It pinpoints fragile bottlenecks before they cause outages, giving engineering leads clear, data-driven refactoring recommendations.
+
+Finally, RepoWise ensures documentation never goes stale. 
+
+The Auto README generator inspects project manifests—like package.json, Cargo.toml, or requirements.txt—alongside core source files to generate a production-grade README with full setup instructions and API specifications in seconds.
+
+Under the hood, RepoWise is engineered for performance: React 19 on the frontend, a secure Node.js and Prisma API gateway, a Python FastAPI microservice for AI intelligence, PostgreSQL, Qdrant for multi-tenant vector storage, and Groq with Gemini fallback for lightning-fast inference.
+
+RepoWise is designed to make understanding, debugging, and maintaining large codebases effortless for developers and teams everywhere. 
+
+The project is completely open source. Check out the link in the description, spin it up with Docker Compose, and give your repository the intelligence it deserves. 
+
+Thanks for watching, and happy coding!

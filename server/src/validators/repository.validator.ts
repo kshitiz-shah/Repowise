@@ -3,7 +3,14 @@ import { z } from "zod";
 const repositoryId = z.string().uuid();
 
 export const createRepositorySchema = z.object({
-  body: z.object({ githubUrl: z.string().trim().url().max(2048) }),
+  body: z.object({
+    githubUrl: z
+      .string()
+      .trim()
+      .min(3)
+      .max(2048)
+      .transform((val) => (val.startsWith("http://") || val.startsWith("https://") ? val : `https://${val}`)),
+  }),
   query: z.object({}),
   params: z.object({}),
 });

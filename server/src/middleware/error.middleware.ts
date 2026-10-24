@@ -10,9 +10,11 @@ export const notFoundHandler: RequestHandler = (req, _res, next) => {
 
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   if (error instanceof ZodError) {
+    const issueMessages = error.issues.map((i) => i.message).filter(Boolean);
+    const message = issueMessages.length > 0 ? issueMessages.join(". ") : "Invalid request";
     res.status(400).json({
       success: false,
-      error: { code: "VALIDATION_ERROR", message: "Invalid request", details: error.flatten() },
+      error: { code: "VALIDATION_ERROR", message, details: error.flatten() },
     });
     return;
   }
@@ -25,11 +27,14 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
     return;
   }
 
+  console.error("[ERROR HANDLER]", error);
+
   res.status(500).json({
     success: false,
     error: {
       code: "INTERNAL_SERVER_ERROR",
-      message: env.NODE_ENV === "production" ? "An unexpected error occurred" : "Internal server error",
+      message: env.NODE_ENV === "production" ? "An unexpected error occurred" : (error instanceof Error ? error.message : "Internal server error"),
+      ...(env.NODE_ENV !== "production" && error instanceof Error ? { details: error.stack } : {}),
     },
   });
 };

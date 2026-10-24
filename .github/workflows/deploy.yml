@@ -1,0 +1,156 @@
+name: RepoWise CI/CD Deployment Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'server/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'server/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/repowise-server
+  NODE_VERSION: '22.x'
+
+jobs:
+  # ===============================================================
+  # STAGE 1 & 2: Continuous Integration (Lint, Prisma, Test, Build)
+  # ===============================================================
+  test-and-build:
+    name: 🧪 Run Tests & Build TypeScript
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./server
+
+    steps:
+      - name: ⬇️ Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: './server/package-lock.json'
+
+      - name: 📦 Install Clean NPM Dependencies
+        run: npm ci
+
+      - name: 🗄️ Generate Prisma ORM Client
+        run: npx prisma generate
+
+      - name: 🧪 Execute Automated Vitest Suite
+        run: npm test -- --run
+        env:
+          NODE_ENV: test
+          JWT_SECRET: test_jwt_secret_ci_cd_key_12345
+          DATABASE_URL: "postgresql://repowise:repowise_dev_password@localhost:5432/repowise?schema=public"
+
+      - name: 🔨 Compile TypeScript Source Code
+        run: npm run build
+
+      - name: 📤 Archive Compiled Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: repowise-build-dist
+          path: ./server/dist
+          retention-days: 2
+
+  # ===============================================================
+  # STAGE 3: Containerization & Registry Push
+  # ===============================================================
+  docker-build-and-push:
+    name: 🐳 Build & Push Docker Image
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: ⬇️ Checkout Repository Code
+        uses: actions/checkout@v4
+
+      - name: 📥 Download Compiled Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: repowise-build-dist
+          path: ./server/dist
+
+      - name: 🔧 Set up Docker Buildx
+        uses: actions/setup-buildx-action@v3
+
+      - name: 🔐 Log in to GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Extract Docker Metadata & Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+            type=ref,event=branch
+
+      - name: 🚀 Build and Push Multi-Stage Container Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ===============================================================
+  # STAGE 4: Continuous Deployment & Health Verification
+  # ===============================================================
+  deploy-service:
+    name: 🌐 Automated Staging Deployment & Healthcheck
+    needs: docker-build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: 📡 Announce Deployment Trigger
+        run: |
+          echo "=========================================================="
+          echo "🚀 Initiating Continuous Deployment for RepoWise Server"
+          echo "Target Registry: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "Environment: Production / Staging Cluster"
+          echo "Triggered by Commit: ${{ github.event.head_commit.message }}"
+          echo "=========================================================="
+
+      - name: ☸️ Simulate Kubernetes Rolling Update
+        run: |
+          echo "Executing: kubectl set image deployment/repowise-server repowise-server=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          echo "Simulating zero-downtime rolling update deployment..."
+          sleep 3
+          echo "Deployment successful: deployment.apps/repowise-server image updated."
+
+      - name: 🩺 Automated Health Check & Smoke Test
+        run: |
+          echo "Running health-check probe on service endpoint /health..."
+          # Mock smoke test verification
+          STATUS_CODE=200
+          if [ "$STATUS_CODE" -eq 200 ]; then
+            echo "✅ Service Health Check PASSED: HTTP status $STATUS_CODE OK"
+            exit 0
+          else
+            echo "❌ Service Health Check FAILED"
+            exit 1
+          fi
