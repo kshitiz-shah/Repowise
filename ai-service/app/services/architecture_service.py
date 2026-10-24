@@ -31,15 +31,18 @@ class ArchitectureService:
     def analyze(self, request: ArchitectureRequest) -> ArchitectureData:
         documents, _ = to_code_documents(request.repository_id, request.files)
 
-        # Automatically index repository into vector DB for Q&A if not already indexed
+        # Attempt auto-indexing only if Qdrant is configured and reachable
         try:
+            from app.services.qdrant_service import get_qdrant_service
+            qs = get_qdrant_service()
+            qs.collection_count()  # Quick probe; raises immediately if Qdrant is down
+
             from app.services.embedding_service import get_embedding_service
             from app.services.indexing_service import IndexingService
-            from app.services.qdrant_service import get_qdrant_service
             from app.services.vector_service import VectorService
             from app.api.schemas.indexing import IndexRepositoryRequest
 
-            vs = VectorService(get_qdrant_service())
+            vs = VectorService(qs)
             indexing_service = IndexingService(get_embedding_service(), vs)
             indexing_service.index_repository(
                 IndexRepositoryRequest(

@@ -16,8 +16,8 @@ export const createRepositorySchema = z.object({
 });
 
 export const repositoryParamsSchema = z.object({
-  body: z.object({}),
-  query: z.object({}),
+  body: z.unknown().optional(),
+  query: z.unknown().optional(),
   params: z.object({ id: repositoryId }),
 });
 
@@ -44,8 +44,8 @@ export const bugLocalizeSchema = z.object({
 });
 
 export const fetchGitHubIssueSchema = z.object({
-  body: z.object({}),
-  query: z.object({}),
+  body: z.unknown().optional(),
+  query: z.unknown().optional(),
   params: z.object({ id: repositoryId, issueNumber: z.coerce.number().int().positive() }),
 });
 
