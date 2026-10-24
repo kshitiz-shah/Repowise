@@ -7,7 +7,7 @@ export interface AiRepositoryFile {
   content: string;
 }
 
-const requestAi = async <T>(path: string, payload: unknown, timeoutMs = 180_000): Promise<T> => {
+const requestAi = async <T>(path: string, payload: unknown, timeoutMs = 300_000): Promise<T> => {
   if (!env.AI_SERVICE_API_KEY) throw new ApiError(503, "AI service key is not configured", "AI_SERVICE_NOT_CONFIGURED");
   let response: Response;
   try {
