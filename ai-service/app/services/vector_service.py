@@ -36,12 +36,15 @@ class VectorService:
                 logger.info("Created Qdrant collection '%s' (vector_size: %d)", self._collection, vector_size)
                 # Create a payload index on repository_id for efficient multi-tenant filtering.
                 # Without this, every search does a brute-force scan across ALL repository vectors.
-                self._client.create_payload_index(
-                    collection_name=self._collection,
-                    field_name="repository_id",
-                    field_schema="keyword",
-                )
-                logger.info("Created payload index on 'repository_id' for collection '%s'", self._collection)
+                try:
+                    self._client.create_payload_index(
+                        collection_name=self._collection,
+                        field_name="repository_id",
+                        field_schema="keyword",
+                    )
+                    logger.info("Created payload index on 'repository_id' for collection '%s'", self._collection)
+                except Exception as index_error:
+                    logger.debug("create_payload_index skipped: %s", index_error)
         except Exception as error:
             logger.exception("Failed to ensure collection in Qdrant")
             raise QdrantUnavailableError("Qdrant is unavailable") from error
