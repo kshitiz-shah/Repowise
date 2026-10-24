@@ -21,8 +21,9 @@ app.use(
   })
 );
 
+const envOrigins = env.CORS_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean);
 const allowedOrigins = new Set([
-  env.CORS_ORIGIN,
+  ...envOrigins,
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:5174",
@@ -32,7 +33,7 @@ const allowedOrigins = new Set([
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin || env.CORS_ORIGIN === "*" || allowedOrigins.has(origin)) {
         return callback(null, true);
       }
       return callback(null, false);

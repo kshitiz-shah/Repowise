@@ -1,0 +1,41 @@
+# ==============================================================================
+# RepoWise Backend Gateway - Render Blueprint Specification
+# Deploys only the Node.js Express Server
+# ==============================================================================
+version: "1"
+
+services:
+  - type: web
+    name: repowise-server
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: server
+    buildCommand: npm install && npm run prisma:generate && npm run build
+    startCommand: npm run prisma:deploy && npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Paste your database URL (e.g. Neon or Render Postgres)
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRES_IN
+        value: 1h
+      - key: REFRESH_TOKEN_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGIN
+        sync: false # Your deployed frontend URL (or * to allow all)
+      - key: AI_SERVICE_URL
+        sync: false # Your deployed AI service URL (e.g. https://your-ai-service.onrender.com)
+      - key: AI_SERVICE_API_KEY
+        sync: false # Your AI service shared secret key
+      - key: GITHUB_TOKEN
+        sync: false # Optional GitHub personal access token
