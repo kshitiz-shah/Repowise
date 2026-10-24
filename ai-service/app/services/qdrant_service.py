@@ -22,7 +22,7 @@ class QdrantService:
 
     def __init__(self, settings: Settings) -> None:
         api_key = settings.qdrant_api_key.get_secret_value() if settings.qdrant_api_key else None
-        self._client = QdrantClient(url=settings.qdrant_url, api_key=api_key)
+        self._client = QdrantClient(url=settings.qdrant_url, api_key=api_key, timeout=3.0)
 
     def collection_count(self) -> int:
         """Prove the connection is usable and return a non-sensitive summary."""

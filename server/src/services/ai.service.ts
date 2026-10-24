@@ -7,7 +7,7 @@ export interface AiRepositoryFile {
   content: string;
 }
 
-const requestAi = async <T>(path: string, payload: unknown, timeoutMs = 90_000): Promise<T> => {
+const requestAi = async <T>(path: string, payload: unknown, timeoutMs = 180_000): Promise<T> => {
   if (!env.AI_SERVICE_API_KEY) throw new ApiError(503, "AI service key is not configured", "AI_SERVICE_NOT_CONFIGURED");
   let response: Response;
   try {
@@ -17,7 +17,8 @@ const requestAi = async <T>(path: string, payload: unknown, timeoutMs = 90_000):
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(timeoutMs),
     });
-  } catch {
+  } catch (fetchError: any) {
+    console.error(`[AI Service Request Error] ${path} failed:`, fetchError?.message || fetchError);
     throw new ApiError(503, "AI service could not be reached", "AI_SERVICE_UNAVAILABLE");
   }
   const body = (await response.json().catch(() => null)) as {
@@ -26,6 +27,7 @@ const requestAi = async <T>(path: string, payload: unknown, timeoutMs = 90_000):
     error?: { code?: string; message?: string };
   } | null;
   if (!response.ok || !body?.success) {
+    console.error(`[AI Service HTTP Error] ${path} returned ${response.status}:`, body?.error);
     throw new ApiError(
       response.status === 401 ? 503 : response.status || 502,
       body?.error?.message ?? "AI service request failed",
