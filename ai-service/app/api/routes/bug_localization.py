@@ -25,11 +25,17 @@ def localize_bug(
     qdrant: QdrantService = Depends(get_qdrant_service),
     llm: LLMService = Depends(get_llm_service),
 ) -> SuccessResponse[BugLocalizationResult]:
-    vector_service = VectorService(qdrant)
+    vector_service = None
+    try:
+        qdrant.collection_count()
+        vector_service = VectorService(qdrant)
+    except Exception as e:
+        logger.info("[Bug Localization] Qdrant unavailable, proceeding with lexical and AST graph signals: %s", e)
+
     documents, _ = to_code_documents(request.repository_id, request.files) if request.files else ([], 0)
 
     # Check if vectors exist for this repo in Qdrant; if not and files provided, auto-index
-    if request.files:
+    if vector_service and request.files:
         try:
             sample_vec = embeddings.embed(["test"])[0]
             existing_results = vector_service.search_similar(request.repository_id, sample_vec, limit=1)

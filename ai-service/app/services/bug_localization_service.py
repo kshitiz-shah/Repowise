@@ -248,6 +248,8 @@ class BugLocalizationService:
 
         for query_str in queries[:3]:
             try:
+                if not self._vectors:
+                    break
                 query_vec = self._embeddings.embed([query_str])[0]
                 results = self._vectors.search_similar(repository_id, query_vec, limit=20)
                 for chunk in results:
